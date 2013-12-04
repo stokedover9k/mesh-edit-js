@@ -121,8 +121,6 @@
     var pMatrix = mat4.create();
 
     function mvPushMatrix() {
-//        var copy = mat4.create();
-//        mat4.set(mvMatrix, copy);
         var copy = mat4.clone();
         mvMatrixStack.push(copy);
     }
@@ -173,8 +171,8 @@
 
         var v0 = makeVert(0, [-1, -1, 0]);
         var v1 = makeVert(1, [ 1, -1, 0]);
-        var v3 = makeVert(3, [ 1,  1, 0]);
-        var v2 = makeVert(2, [-1,  1, 0]);
+        var v2 = makeVert(3, [ 1,  1, 0]);
+        var v3 = makeVert(2, [-1,  1, 0]);
 
         verts = NIL.prepend(v3).prepend(v2).prepend(v1).prepend(v0);
 
@@ -198,7 +196,7 @@
         e2.next = e3;
         e3.next = e0;
 
-        edges = NIL.prepend(e3).prepend(e2).prepend(e1).prepend(e0);
+        edges = ListFromArr([e0, e1, e2, e3, e0.opp, e1.opp, e2.opp, e3.opp]);
     }
 
     function initBuffers() {
@@ -214,6 +212,25 @@
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.DYNAMIC_DRAW);
         pointsPositionBuffer.itemSize = 3;
         pointsPositionBuffer.numItems = points.length / pointsPositionBuffer.itemSize;
+
+
+
+        var edgeElementOffsets = [];
+        edges.foreach(function (e) {
+            if( e._already_drawn_ )
+                delete e._already_drawn_;
+            else {
+                edgeElementOffsets.push(e.vert.id)
+                edgeElementOffsets.push(e.opp.vert.id);
+                e.opp._already_drawn_ = true;
+            }
+        });
+        console.log(edgeElementOffsets);
+
+        edgeVerticesIndexBuffer = gl.createBuffer();
+        edgeVerticesIndexBuffer.numElements = edgeElementOffsets.length;
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeVerticesIndexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(edgeElementOffsets), gl.STATIC_DRAW);
     }
 
     function drawAll () {
@@ -223,6 +240,9 @@
         gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, pointsPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
         setMatrixUniforms();
         gl.drawArrays(gl.POINTS, 0, pointsPositionBuffer.numItems);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeVerticesIndexBuffer);
+        gl.drawElements(gl.LINES, edgeVerticesIndexBuffer.numElements, gl.UNSIGNED_SHORT, 0);
     }
 
     function updateVerts () {
@@ -247,8 +267,6 @@
         mat4.identity(mvMatrix);
         mat4.translate(mvMatrix, mvMatrix, [0.0, 0.0, zoom]);
         mat4.rotate(mvMatrix, mvMatrix, degToRad(tilt), [1.0, 0.0, 0.0]);
-//        mat4.translate(mvMatrix, [0.0, 0.0, zoom]);
-//        mat4.rotate(mvMatrix, degToRad(tilt), [1.0, 0.0, 0.0]);
 
         updateVerts();
         drawAll();

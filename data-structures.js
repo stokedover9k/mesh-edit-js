@@ -17,6 +17,13 @@ function ListFill (num, filling) {
   return list;
 }
 
+function ListFromArr (arr) {
+  var list = NIL;
+  for (var i = arr.length - 1; i >= 0; i--)
+    list = new List(arr[i], list);
+  return list;
+}
+
 List.prototype.prepend = function(v) {
   return new List(v, this);
 };
