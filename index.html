@@ -9,6 +9,8 @@
 <script type="text/javascript" src="gl-matrix/common.js"></script>
 <script type="text/javascript" src="gl-matrix/mat4.js"></script>
 
+<script type="text/javascript" src="half-edge-mesh.js"></script>
+
 <script type="text/javascript" src="data-structures.js"></script>
 <script type="text/javascript" src="webgl-utils.js"></script>
 
@@ -32,17 +34,6 @@
 </script>
 
 <script type="text/javascript">
-
-    function Vert (loc, edge, norm) { this.loc = loc; this.edge = edge; this.norm = norm; }
-
-    function Face (edge) { this.edge = edge; }
-
-    function Edge (vert, next, opp, face) {
-        this.vert = vert;
-        this.next = next;
-        this.opp = opp;
-        this.face = face;
-    }
 
     var _X_ = 0;  var _Y_ = 1;  var _Z_ = 2;
 
@@ -157,6 +148,7 @@
     }
 
     var pointsPositionBuffer;
+    var edgeVerticesIndexBuffer;
 
     var verts = NIL;
     var edges = NIL;
@@ -197,6 +189,8 @@
         e3.next = e0;
 
         edges = ListFromArr([e0, e1, e2, e3, e0.opp, e1.opp, e2.opp, e3.opp]);
+
+        buildMesh();
     }
 
     function initBuffers() {
@@ -225,7 +219,6 @@
                 e.opp._already_drawn_ = true;
             }
         });
-        console.log(edgeElementOffsets);
 
         edgeVerticesIndexBuffer = gl.createBuffer();
         edgeVerticesIndexBuffer.numElements = edgeElementOffsets.length;

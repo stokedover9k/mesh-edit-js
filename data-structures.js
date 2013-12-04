@@ -37,6 +37,13 @@ List.prototype.filter = function(pred) {
     return this.tail.filter(pred);
 };
 
+List.prototype.findWhere = function(pred) {
+  for(var l = this; l != NIL; l = l.tail)
+    if(pred(l.val))
+      return l;
+  return NIL;
+};
+
 List.prototype.foreach = function(func) {
   for(var l = this; l != NIL; l = l.tail )
     func(l.val);
