@@ -155,42 +155,57 @@
     var vertsToUpdate = NIL;
 
     function initObjects () {
-        function makeVert (id, loc) {
-            var v = new Vert(loc);
-            v.id = id;
-            return v;
-        }
 
-        var v0 = makeVert(0, [-1, -1, 0]);
-        var v1 = makeVert(1, [ 1, -1, 0]);
-        var v2 = makeVert(3, [ 1,  1, 0]);
-        var v3 = makeVert(2, [-1,  1, 0]);
+        var vertData;
+        var faceData;
 
-        verts = NIL.prepend(v3).prepend(v2).prepend(v1).prepend(v0);
+        (function () {
+            var vpr = 8;  // vertices per row
+            var hpr = 1;  // height per row
 
-        var e0 = new Edge(v1);  v0.edge = e0;
-        var e1 = new Edge(v2);  v1.edge = e1;
-        var e2 = new Edge(v3);  v2.edge = e2;
-        var e3 = new Edge(v0);  v3.edge = e3;
+            var rows = 4;
 
-        var e00 = new Edge(v0);  // back edges
-        var e10 = new Edge(v1);
-        var e20 = new Edge(v2);
-        var e30 = new Edge(v3);
+            var verts = [];
+            var faces = [];
 
-        e00.next = e30;  e00.opp = e0;  e0.opp = e00;
-        e10.next = e00;  e10.opp = e1;  e1.opp = e10;
-        e20.next = e10;  e20.opp = e2;  e2.opp = e20;
-        e30.next = e20;  e30.opp = e3;  e3.opp = e30;
+            function addVert (index, row) {
+                var ang = Math.PI * 2 / vpr * index;
+                verts.push( vpr * row + index );
+                verts.push( [Math.cos(ang), Math.sin(ang), row * hpr] );
+            }
 
-        e0.next = e1;
-        e1.next = e2;
-        e2.next = e3;
-        e3.next = e0;
+            function addFacePair (index, row) {
 
-        edges = ListFromArr([e0, e1, e2, e3, e0.opp, e1.opp, e2.opp, e3.opp]);
+                var bottomLeft = vpr * row + index;
+                var bottomRight = bottomLeft + 1;
+                if( bottomRight % vpr == 0 )  bottomRight -= vpr;
 
-        buildMesh();
+                faces.push( vpr * 2 * row + index * 2 );
+                faces.push( [ bottomLeft, bottomRight, bottomLeft + vpr ] );
+
+                faces.push( vpr * 2 * row + index * 2 + 1 );
+                faces.push( [ bottomRight, bottomRight + vpr, bottomLeft + vpr ] );
+            }
+
+            for( var row = 0; row < rows; row++ )
+                for( var i = 0; i < vpr; i++ )
+                    addVert(i, row);
+
+            for( var row = 0; row < rows - 1; row++ )
+                for( var i = 0; i < vpr; i++ )
+                    addFacePair(i, row);
+
+            vertData = verts;
+            faceData = faces;
+        })();
+
+        //=======================
+
+        var mesh = Meshes.build(vertData, faceData);
+        Meshes.validate(mesh);
+
+        verts = ListFromArr(mesh.verts);
+        edges = ListFromArr(mesh.edges);
     }
 
     function initBuffers() {
@@ -227,12 +242,14 @@
     }
 
     function drawAll () {
-        gl.uniform3f(shaderProgram.colorUniform, .5, .1, .1);
+        gl.uniform3f(shaderProgram.colorUniform, .5, .5, .1);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, pointsPositionBuffer);
         gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, pointsPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
         setMatrixUniforms();
         gl.drawArrays(gl.POINTS, 0, pointsPositionBuffer.numItems);
+
+        gl.uniform3f(shaderProgram.colorUniform, .5, .1, .1);
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeVerticesIndexBuffer);
         gl.drawElements(gl.LINES, edgeVerticesIndexBuffer.numElements, gl.UNSIGNED_SHORT, 0);
@@ -277,8 +294,8 @@
 
         vertsToUpdate = vertsToUpdate.prepend(v1).prepend(v2);
 
-        v1.loc[_Z_] = Math.sin(timeNow / 1000);
-        v2.loc[_Z_] = Math.cos(timeNow / 1000);
+//        v1.loc[_Z_] = Math.sin(timeNow / 1000);
+//        v2.loc[_Z_] = Math.cos(timeNow / 1000);
 
         lastTime = timeNow;
     }

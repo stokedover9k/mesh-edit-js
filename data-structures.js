@@ -24,6 +24,14 @@ function ListFromArr (arr) {
   return list;
 }
 
+List.prototype.toArr = function() {
+  var arr = [];
+  this.foreach(function (v) {
+    arr.push(v);
+  });
+  return arr;
+};
+
 List.prototype.prepend = function(v) {
   return new List(v, this);
 };
