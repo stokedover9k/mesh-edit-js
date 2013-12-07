@@ -141,7 +141,10 @@
     function degToRad(degrees) { return Math.PI * degrees / 180; }
 
     var currentlyPressedKeys = {};
-    function handleKeyDown(event) {  currentlyPressedKeys[event.keyCode] = true;  }
+    function handleKeyDown(event) {
+        currentlyPressedKeys[event.keyCode] = true;
+        handleKeyPress(event.keyCode);
+    }
     function handleKeyUp(event) {  currentlyPressedKeys[event.keyCode] = false;  }
 
     var zoom = -15;
@@ -165,12 +168,26 @@
             selectNextVertex();
     }
 
+    function handleKeyPress (keyCode) {
+        if( keyCode == 45 ) {                    // Insert key
+            splitEdge();
+            Meshes.validate(mesh);
+        }
+    }
+
     var pointsPositionBuffer;
     var edgeVerticesIndexBuffer;
 
+    var mesh;
     var verts = NIL;
     var edges = NIL;
+    
     var vertsToUpdate = NIL;
+    var vertsToAdd = NIL;
+
+    var edgesToUpdate = NIL;
+    var edgesToAdd = NIL;
+
     var selectedVertex = [10000000, 10000000, 1000000];
     var vertSelection = NIL;
 
@@ -229,7 +246,7 @@
 
         //=======================
 
-        var mesh = Meshes.build(vertData, faceData);
+        mesh = Meshes.build(vertData, faceData);
         Meshes.validate(mesh);
 
         verts = ListFromArr(mesh.verts);
@@ -291,10 +308,23 @@
         vertsToUpdate.foreach(function (v) {
             gl.bufferSubData(
                 gl.ARRAY_BUFFER,
-                v.id * 3 * Float32Array.BYTES_PER_ELEMENT,
+                v.id * pointsPositionBuffer.itemSize * Float32Array.BYTES_PER_ELEMENT,
                 new Float32Array(v.loc));
         });
         vertsToUpdate = NIL;
+    }
+
+    function splitEdge () {
+        if( vertSelection == NIL )  return;
+
+        var vert = vertSelection.val;
+//        mesh.split(vert.edge);
+        mesh.splitAtVertex(vert);
+
+        verts = ListFromArr(mesh.verts);
+        edges = ListFromArr(mesh.edges);
+
+        initBuffers();
     }
 
     function drawScene() {
@@ -360,7 +390,8 @@
 <body onload="webGLStart();">
     <canvas id="lesson09-canvas" style="border: none;" width="500" height="500"></canvas>
 
-    <p>(Use up/down cursor keys to rotate, and <code>Page Up</code>/<code>Page Down</code> to zoom out/in)</p>
+    <p>Use up/down cursor keys to rotate, and <code>Page Up</code>/<code>Page Down</code> to zoom out/in</p>
+    <p>Use space to select next vertex, Ins to split its edge.</p>
 </body>
 
 </html>

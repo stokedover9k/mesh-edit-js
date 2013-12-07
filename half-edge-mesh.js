@@ -9,11 +9,67 @@ function Edge (vert, next, opp, face) {
   this.face = face;
 }
 
+Vert.prototype.allEdges = function() {
+  var es = [this.edge];
+  for( var e = this.edge.next; e != this.edge; e = e.opp.next )
+    es.push(e);
+  return es;
+};
+
+Vert.prototype.eachEdge = function(func) {
+  var e = this.edge;
+  do {
+    func(e);
+    e = e.opp.next;
+  } while( e != this.edge );
+};
+
 Face.prototype.allEdges = function() {
   var es = [this.edge];
   for( var e = this.edge.next; e != this.edge; e = e.next )
     es.push(e);
   return es;
+};
+
+Face.prototype.eachEdge = function(func) {
+  var e = this.edge;
+  do {
+    func(e);
+    e = e.next;
+  } while( e != this.edge );
+};
+
+Face.prototype.eachVert = function(func) {
+  var e = this.edge;
+  do {
+    func(e.vert);
+    e = e.next;
+  } while( e != this.edge );
+};
+
+Edge.prototype.split = function() {
+  var loc = vec3.create();
+  vec3.add( loc, this.vert.loc, this.opp.vert.loc );
+  vec3.scale(loc, loc, .5);
+
+  var e1 = new Edge(this.vert);
+  var e2 = new Edge(this.opp.vert);
+
+  var vert = new Vert(loc);
+  vert.edge = this.face ? e2 : e1;
+
+  this.vert = vert;
+  this.opp.vert = vert;
+
+  e1.next = this.next;
+  e2.next = this.opp.next;
+  e1.face = this.face;
+  e2.face = this.opp.face;
+
+  this.opp.opp = e1;  e1.opp = this.opp;
+  this.opp = e2;      e2.opp = this;
+
+  return [vert, e1, e2];
 };
 
 Vert.prototype.toString = function() {
@@ -40,7 +96,25 @@ function Mesh (verts, edges, faces) {
   this.verts = verts;
   this.edges = edges;
   this.faces = faces;
+
+  this.numVerts = verts.length;
+  this.numEdges = edges.length;
+  this.numFaces = faces.length;
 }
+
+Mesh.prototype.split = function(edge) {
+  var res = edge.split();
+  res[0].id = this.numVerts;  this.verts.push(res[0]);  this.numVerts++;
+  this.edges.push(res[1], res[2]);  this.numEdges += 2;
+  return res[0];
+};
+
+Mesh.prototype.splitAtVertex = function(vert) {
+  var mesh = this;
+  vert.eachEdge(function (e) {
+    mesh.split(e.next);
+  });
+};
 
 var Meshes = {};
 
@@ -113,7 +187,7 @@ Meshes.build = function (vertData, faceData) {
   var numEdges = 0;
   for( var i = 0; i < faceData.length / 2; i++ ) {
     var f = new Face();
-    f.id = i;
+    f.id = i;  f.level = 1;
 
     var vs = getFaceVertices(i);
     var lastId = vs[vs.length-1];
@@ -160,7 +234,7 @@ Meshes.build = function (vertData, faceData) {
     });
 
     if( noOpp != NIL ) {
-      if( noOpp.size() > 1 )  throw "more than 1 rim edges at a vertex";
+      if( noOpp.size() > 1 )  throw "more than 1 rim edge at a vertex";
 
       var innerRim = noOpp.val;
 
