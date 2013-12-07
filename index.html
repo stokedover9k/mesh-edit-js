@@ -8,6 +8,8 @@
 -->
 <script type="text/javascript" src="gl-matrix/common.js"></script>
 <script type="text/javascript" src="gl-matrix/mat4.js"></script>
+<script type="text/javascript" src="gl-matrix/vec3.js"></script>
+<script type="text/javascript" src="gl-matrix/vec4.js"></script>
 
 <script type="text/javascript" src="half-edge-mesh.js"></script>
 
@@ -17,8 +19,9 @@
 <script id="shader-fs" type="x-shader/x-fragment">
     precision mediump float;
     uniform vec3 uColor;
+    varying vec3 modColor;
     void main(void) {
-        gl_FragColor = vec4(uColor, 1.0);
+        gl_FragColor = vec4(uColor + modColor, 1.0);
     }
 </script>
 
@@ -26,8 +29,15 @@
     attribute vec3 aVertexPosition;
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
+    uniform vec3 uSelectedVertex;
+
+    varying vec3 modColor;
 
     void main(void) {
+        if( aVertexPosition == uSelectedVertex )
+            modColor = vec3(1., 1., 1.);
+        else
+            modColor = vec3(0., 0., 0.);
         gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
         gl_PointSize = 4.0;
     }
@@ -105,6 +115,8 @@
         shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
         shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, "uSampler");
         shaderProgram.colorUniform = gl.getUniformLocation(shaderProgram, "uColor");
+
+        shaderProgram.selectedVertex = gl.getUniformLocation(shaderProgram, "uSelectedVertex");
     }
 
     var mvMatrix = mat4.create();
@@ -145,6 +157,12 @@
             tilt += 2;
         if (currentlyPressedKeys[40])            // Down cursor key
             tilt -= 2;
+        if (currentlyPressedKeys[39])            // Right cursor key
+            spin += 2;
+        if (currentlyPressedKeys[37])            // Right cursor key
+            spin -= 2;
+        if (currentlyPressedKeys[32])            // Space key
+            selectNextVertex();
     }
 
     var pointsPositionBuffer;
@@ -153,6 +171,16 @@
     var verts = NIL;
     var edges = NIL;
     var vertsToUpdate = NIL;
+    var selectedVertex = [10000000, 10000000, 1000000];
+    var vertSelection = NIL;
+
+    var lastSelection = 0;
+    function selectNextVertex () {
+        if( lastSelection + 200 < lastTime ) {
+            vertSelection = vertSelection.tail == NIL ? verts : vertSelection.tail;
+            lastSelection = lastTime;
+        }
+    }
 
     function initObjects () {
 
@@ -206,20 +234,23 @@
 
         verts = ListFromArr(mesh.verts);
         edges = ListFromArr(mesh.edges);
+
+        vertSelection = verts;
     }
 
     function initBuffers() {
-        var points = Array(verts.size() * 3);
+        var SIZE = 3;
+        var points = Array(verts.size() * SIZE);
         verts.foreach(function (v) {
-            points[v.id * 3 + 0] = v.loc[0];
-            points[v.id * 3 + 1] = v.loc[1];
-            points[v.id * 3 + 2] = v.loc[2];
+            points[v.id * SIZE + 0] = v.loc[0];
+            points[v.id * SIZE + 1] = v.loc[1];
+            points[v.id * SIZE + 2] = v.loc[2];
         });
 
         pointsPositionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, pointsPositionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.DYNAMIC_DRAW);
-        pointsPositionBuffer.itemSize = 3;
+        pointsPositionBuffer.itemSize = SIZE;
         pointsPositionBuffer.numItems = points.length / pointsPositionBuffer.itemSize;
 
 
@@ -242,6 +273,7 @@
     }
 
     function drawAll () {
+        gl.uniform3f(shaderProgram.selectedVertex, selectedVertex[0], selectedVertex[1], selectedVertex[2]);
         gl.uniform3f(shaderProgram.colorUniform, .5, .5, .1);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, pointsPositionBuffer);
@@ -276,6 +308,7 @@
 
         mat4.identity(mvMatrix);
         mat4.translate(mvMatrix, mvMatrix, [0.0, 0.0, zoom]);
+        mat4.rotate(mvMatrix, mvMatrix, degToRad(spin), [0.0, 1.0, 0.0]);
         mat4.rotate(mvMatrix, mvMatrix, degToRad(tilt), [1.0, 0.0, 0.0]);
 
         updateVerts();
@@ -294,10 +327,9 @@
 
         vertsToUpdate = vertsToUpdate.prepend(v1).prepend(v2);
 
-//        v1.loc[_Z_] = Math.sin(timeNow / 1000);
-//        v2.loc[_Z_] = Math.cos(timeNow / 1000);
-
         lastTime = timeNow;
+
+        selectedVertex = vertSelection.val.loc;
     }
 
     function tick() {
@@ -326,17 +358,9 @@
 </head>
 
 <body onload="webGLStart();">
-    <a href="http://learningwebgl.com/blog/?p=1008">&lt;&lt; Back to Lesson 9</a><br />
-
     <canvas id="lesson09-canvas" style="border: none;" width="500" height="500"></canvas>
 
-    <br/>
-    <input type="checkbox" id="twinkle" /> Twinkle<br/>
-    (Use up/down cursor keys to rotate, and <code>Page Up</code>/<code>Page Down</code> to zoom out/in)
-
-    <br/>
-    <br/>
-    <a href="http://learningwebgl.com/blog/?p=1008">&lt;&lt; Back to Lesson 9</a>
+    <p>(Use up/down cursor keys to rotate, and <code>Page Up</code>/<code>Page Down</code> to zoom out/in)</p>
 </body>
 
 </html>
