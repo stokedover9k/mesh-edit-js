@@ -155,6 +155,11 @@ Meshes.validate = function (mesh) {
   var edges = mesh.edges;
   
   for( v in verts ) {
+    if( typeof verts[v].id != 'number' ) {
+      console.log(verts[v]);
+      throw "vertex does not have an id";
+    }
+
     if( !verts[v].edge ) {
       console.log(verts[v]);
       throw "vertex with no edge";
@@ -176,6 +181,11 @@ Meshes.validate = function (mesh) {
   }
 
   for( f in faces ) {
+    if( typeof faces[f].id != 'number' ) {
+      console.log(faces[f]);
+      throw "face does not have an id";
+    }
+
     var es = faces[f].allEdges();
     for( e in es ) {
       // all edges point to the same face
@@ -193,6 +203,11 @@ Meshes.validate = function (mesh) {
   }
 
   for( e in edges ) {
+    if( typeof edges[e].id != 'number' ) {
+      console.log(edges[e]);
+      throw "edge does not have an id";
+    }
+
     var e = edges[e];
     var n = 0;
     var ee = e;
