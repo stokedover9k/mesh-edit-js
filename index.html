@@ -318,8 +318,9 @@
         if( vertSelection == NIL )  return;
 
         var vert = vertSelection.val;
-//        mesh.split(vert.edge);
-        mesh.splitAtVertex(vert);
+
+        mesh.splitAtVertex(vert);        console.log("Split complete. Validating...");
+        Meshes.validate(mesh);           console.log("Validation complete.");
 
         verts = ListFromArr(mesh.verts);
         edges = ListFromArr(mesh.edges);

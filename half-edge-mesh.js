@@ -10,9 +10,8 @@ function Edge (vert, next, opp, face) {
 }
 
 Vert.prototype.allEdges = function() {
-  var es = [this.edge];
-  for( var e = this.edge.next; e != this.edge; e = e.opp.next )
-    es.push(e);
+  var es = [];
+  this.eachEdge(function (e) { es.push(e); });
   return es;
 };
 
@@ -47,6 +46,13 @@ Face.prototype.eachVert = function(func) {
   } while( e != this.edge );
 };
 
+Edge.prototype.prev = function() {
+  edge = this.next;
+  while( edge.next != this )
+    edge = edge.next;
+  return edge;
+};
+
 Edge.prototype.split = function() {
   var loc = vec3.create();
   vec3.add( loc, this.vert.loc, this.opp.vert.loc );
@@ -56,7 +62,6 @@ Edge.prototype.split = function() {
   var e2 = new Edge(this.opp.vert);
 
   var vert = new Vert(loc);
-  vert.edge = this.face ? e2 : e1;
 
   this.vert = vert;
   this.opp.vert = vert;
@@ -66,8 +71,10 @@ Edge.prototype.split = function() {
   e1.face = this.face;
   e2.face = this.opp.face;
 
-  this.opp.opp = e1;  e1.opp = this.opp;
-  this.opp = e2;      e2.opp = this;
+  vert.edge = this.face ? e2 : e1;
+
+  this.opp.opp = e1;  e1.opp = this.opp;  this.opp.next = e2;
+  this.opp = e2;      e2.opp = this;      this.next = e1;
 
   return [vert, e1, e2];
 };
@@ -102,17 +109,40 @@ function Mesh (verts, edges, faces) {
   this.numFaces = faces.length;
 }
 
+Mesh.prototype.addVert = function(v) { v.id = this.numVerts;  this.numVerts++;  this.verts.push(v);  return v; };
+Mesh.prototype.addEdge = function(e) { this.numEdges++;  this.edges.push(e);  return e; };
+Mesh.prototype.addFace = function(f) { this.numFaces++;  this.faces.push(f);  return f; };
+
 Mesh.prototype.split = function(edge) {
   var res = edge.split();
-  res[0].id = this.numVerts;  this.verts.push(res[0]);  this.numVerts++;
-  this.edges.push(res[1], res[2]);  this.numEdges += 2;
+  this.addVert(res[0]);
+  this.addEdge(res[1]);
+  this.addEdge(res[2]);
   return res[0];
 };
 
 Mesh.prototype.splitAtVertex = function(vert) {
   var mesh = this;
+
+  var edges = vert.allEdges();
   vert.eachEdge(function (e) {
-    mesh.split(e.next);
+    if( e.face != null ) {
+      var vMid = mesh.split(e.next);
+
+      var face = mesh.addFace( new Face() );
+
+      var e1 = mesh.addEdge( new Edge(vert, e, null, e.face) );
+      var e2 = mesh.addEdge( new Edge(vMid, e.next.next, e1, face ) );
+      e1.opp = e2;
+
+      e.prev().next = e2;
+      e.next.next = e1;
+
+      face.edge = e2;
+      face.eachEdge(function (e) { e.face = face; });
+
+      e.face.edge = e;
+    }
   });
 };
 
@@ -122,6 +152,7 @@ Meshes.validate = function (mesh) {
 
   var verts = mesh.verts;
   var faces = mesh.faces;
+  var edges = mesh.edges;
   
   for( v in verts ) {
     if( !verts[v].edge ) {
@@ -132,6 +163,15 @@ Meshes.validate = function (mesh) {
     if( verts[v].edge.opp.vert != verts[v] ) {
       console.log(verts[v]);
       throw "vertex.edge.opp.vert != vertex";
+    }
+
+    if( verts[v].edge.face ) {
+      verts[v].eachEdge(function (e) {
+        if( ! e.face ) {
+          console.log(verts[v]);
+          throw "vertex should be pointing to a boundary edge";
+        }
+      })
     }
   }
 
@@ -150,6 +190,19 @@ Meshes.validate = function (mesh) {
         throw "edge.opp.opp != edge";
       }
     }
+  }
+
+  for( e in edges ) {
+    var e = edges[e];
+    var n = 0;
+    var ee = e;
+    for( ; n < 100; n++ ) {
+      ee = ee.next;
+      if( ee == e )
+        break;
+    }
+    if( ee == 100 )
+      console.log(e, "too many edges in a ring");
   }
 }
 
@@ -173,17 +226,16 @@ Meshes.build = function (vertData, faceData) {
   function getFaceVertices (index) { return faceData[index * 2 + 1]; }
 
   var verts = [];
+  var faces = [];
+  var edges = [];
+
   for( var i = 0; i < vertData.length / 2; i++ ) {
     var v = new Vert(getVertLocation(i));
     v.id = i;
-
     v._out_ = NIL;
-
     verts.push(v);
   }
 
-  var faces = [];
-  var edges = [];
   var numEdges = 0;
   for( var i = 0; i < faceData.length / 2; i++ ) {
     var f = new Face();
@@ -198,8 +250,7 @@ Meshes.build = function (vertData, faceData) {
 
       var e = new Edge(v1, null, null, f);
       edges.push(e);
-      e.id = numEdges;
-      numEdges++;
+      e.id = numEdges++;
 
       var opp = v1._out_.findWhere(function (e) { return e.vert == v0; });
       if( opp != NIL ) {
@@ -239,6 +290,7 @@ Meshes.build = function (vertData, faceData) {
       var innerRim = noOpp.val;
 
       innerRim.opp = new Edge(v, null, innerRim, null);
+      edges.push(innerRim.opp);    innerRim.opp.id = v.id;
       innerRim.vert.edge = innerRim.opp;
       outerRim = outerRim.prepend(innerRim.opp);
     }
