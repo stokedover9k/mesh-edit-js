@@ -337,6 +337,7 @@
     function splitEdge () {
         if( vertSelection == NIL )  return;
 
+        /*
         var vert = vertSelection.val;
 
         mesh.splitAtVertex(vert);        console.log("Split complete. Validating...");
@@ -344,7 +345,34 @@
 
         verts = ListFromArr(mesh.verts);
         edges = ListFromArr(mesh.edges);
+        */
 
+
+        var vert = vertSelection.val;
+
+        var face = vert.edge.face ? vert.edge.face : vert.edge.opp.face;
+
+        mesh.splitFaceAndNeighbors(face);
+
+//        mesh.split2Faces(vert.edge);
+
+/*
+        var newVert = mesh.split(vert.edge);
+
+        var f1 = newVert.edge.face;
+        var f2 = newVert.edge.opp.face;
+
+        if( f1 )   mesh.splitFaceAt(f1, newVert);
+        if( f2 )   mesh.splitFaceAt(f2, newVert);
+*/
+        console.log("validating...");
+
+
+
+    //////////////////////////////////////
+        verts = ListFromArr(mesh.verts);
+        edges = ListFromArr(mesh.edges);
+        Meshes.validate(mesh);           console.log("Validation complete.");
         initBuffers();
     }
 

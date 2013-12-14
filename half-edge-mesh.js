@@ -113,6 +113,51 @@ Mesh.prototype.addVert = function(v) { v.id = this.numVerts;  this.numVerts++;  
 Mesh.prototype.addEdge = function(e) { e.id = this.numEdges;  this.numEdges++;  this.edges.push(e);  return e; };
 Mesh.prototype.addFace = function(f) { f.id = this.numFaces;  this.numFaces++;  this.faces.push(f);  return f; };
 
+Mesh.prototype.splitFaceAt = function(f0, v0) {
+  var mesh = this;
+
+  if( f0.allEdges().length == 3 )
+    return null;
+
+  var e0 = v0.edge;
+  while( e0.face != f0 )
+    e0 = e0.opp.next;
+
+  var v1 = e0.next.vert;
+  var f1 = mesh.addFace(new Face(e0));
+
+  var ne0 = mesh.addEdge(new Edge(v0, e0, null, f1));
+  var ne1 = mesh.addEdge(new Edge(v1, e0.next.next, ne0, f0));
+  ne0.opp = ne1;
+
+  e0.prev().next = ne1;
+
+  e0.face = f1;
+  e0.next.face = f1;
+  e0.next.next = ne0;
+
+  f0.edge = ne1;
+
+  return f1;
+};
+
+// Splits the edge at the midpoint m and splits its two adjacent edges from m.
+Mesh.prototype.split2Faces = function(edge) {
+  var f1 = edge.face, f2 = edge.opp.face;
+  var vert = this.split(edge);
+
+  if( f1 )   this.splitFaceAt(f1, vert);
+  if( f2 )   this.splitFaceAt(f2, vert);
+};
+
+// Splits each edge e of the given face at midpoint m and splits face and its
+// neighbor across e at m.
+Mesh.prototype.splitFaceAndNeighbors = function(face) {
+  var edges = face.allEdges();
+  for( e in edges )
+    this.split2Faces(edges[e]);
+};
+
 Mesh.prototype.split = function(edge) {
   var res = edge.split();
   this.addVert(res[0]);
