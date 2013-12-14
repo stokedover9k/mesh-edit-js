@@ -1,4 +1,4 @@
-function Vert (loc, edge, norm) { this.loc = loc; this.edge = edge; this.norm = norm; }
+function Vert (loc, edge, norm) { this.loc = loc; this.edge = edge; this.norm = norm; this.col = [0,0,0]; }
 
 function Face (edge) { this.edge = edge; }
 
