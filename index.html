@@ -27,17 +27,15 @@
 
 <script id="shader-vs" type="x-shader/x-vertex">
     attribute vec3 aVertexPosition;
+    attribute vec3 aVertexColor;
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
-    uniform vec3 uSelectedVertex;
 
     varying vec3 modColor;
 
     void main(void) {
-        if( aVertexPosition == uSelectedVertex )
-            modColor = vec3(1., 1., 1.);
-        else
-            modColor = vec3(0., 0., 0.);
+        modColor = aVertexColor;
+
         gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
         gl_PointSize = 4.0;
     }
@@ -110,13 +108,14 @@
 
         shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
         gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+        shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+        gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+
 
         shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
         shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
         shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, "uSampler");
         shaderProgram.colorUniform = gl.getUniformLocation(shaderProgram, "uColor");
-
-        shaderProgram.selectedVertex = gl.getUniformLocation(shaderProgram, "uSelectedVertex");
     }
 
     var mvMatrix = mat4.create();
@@ -188,13 +187,27 @@
     var edgesToUpdate = NIL;
     var edgesToAdd = NIL;
 
-    var selectedVertex = [10000000, 10000000, 1000000];
     var vertSelection = NIL;
 
     var lastSelection = 0;
+
+    function selectVert (v) {
+        v.col = [1,1,1];
+        vertsToUpdate = vertsToUpdate.prepend(v);
+    }
+    function unselectVert (v) {
+        v.col = [0,0,0];
+        vertsToUpdate = vertsToUpdate.prepend(v);
+    }
+
     function selectNextVertex () {
         if( lastSelection + 200 < lastTime ) {
+            if( vertSelection != NIL )
+                unselectVert(vertSelection.val);
+
             vertSelection = vertSelection.tail == NIL ? verts : vertSelection.tail;
+            selectVert(vertSelection.val);
+
             lastSelection = lastTime;
         }
     }
@@ -252,23 +265,29 @@
         verts = ListFromArr(mesh.verts);
         edges = ListFromArr(mesh.edges);
 
+        verts.foreach(function (v) { v.col = [0, 0, 0]; });
+
         vertSelection = verts;
     }
 
     function initBuffers() {
-        var SIZE = 3;
+        var SIZE = 6;
         var points = Array(verts.size() * SIZE);
         verts.foreach(function (v) {
             points[v.id * SIZE + 0] = v.loc[0];
             points[v.id * SIZE + 1] = v.loc[1];
             points[v.id * SIZE + 2] = v.loc[2];
+
+            points[v.id * SIZE + 3] = v.col[0];
+            points[v.id * SIZE + 4] = v.col[1];
+            points[v.id * SIZE + 5] = v.col[2];
         });
 
         pointsPositionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, pointsPositionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.DYNAMIC_DRAW);
         pointsPositionBuffer.itemSize = SIZE;
-        pointsPositionBuffer.numItems = points.length / pointsPositionBuffer.itemSize;
+        pointsPositionBuffer.numItems = verts.size();
 
 
 
@@ -290,11 +309,12 @@
     }
 
     function drawAll () {
-        gl.uniform3f(shaderProgram.selectedVertex, selectedVertex[0], selectedVertex[1], selectedVertex[2]);
         gl.uniform3f(shaderProgram.colorUniform, .5, .5, .1);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, pointsPositionBuffer);
-        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, pointsPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        var stride = pointsPositionBuffer.itemSize * 4;  // 4 is the number of bytes per FLOAT
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, stride, 0);
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute,    3, gl.FLOAT, false, stride, stride / 2);
         setMatrixUniforms();
         gl.drawArrays(gl.POINTS, 0, pointsPositionBuffer.numItems);
 
@@ -309,7 +329,7 @@
             gl.bufferSubData(
                 gl.ARRAY_BUFFER,
                 v.id * pointsPositionBuffer.itemSize * Float32Array.BYTES_PER_ELEMENT,
-                new Float32Array(v.loc));
+                new Float32Array(v.loc.concat(v.col)));
         });
         vertsToUpdate = NIL;
     }
@@ -359,8 +379,6 @@
         vertsToUpdate = vertsToUpdate.prepend(v1).prepend(v2);
 
         lastTime = timeNow;
-
-        selectedVertex = vertSelection.val.loc;
     }
 
     function tick() {
