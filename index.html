@@ -90,50 +90,50 @@
 
     //---------------------------------------------------
 
+    function _BaseSelector_() { this.vs = NIL; }
+    
+    _BaseSelector_.prototype._select_on_ = function (v) {
+        _make_selected_(v);  this.vs = this.vs.prepend(v);
+    };
+    _BaseSelector_.prototype._select_off_ = function (v) {
+        _make_unselected_(v); this.vs = this.vs.filter(isNot(v));
+    };
+    _BaseSelector_.prototype._selected_ = function () {
+        return this.vs;
+    };
+    _BaseSelector_.prototype._unselect_all_ = function () {
+        this._selected_().foreach(function (v) { _make_unselected_(v); });
+        this.vs = NIL;
+    }
+
+    //---------------------------------------------------
+
     function SelVertices () {
-        var sel = {};
-
-        sel.vs = NIL;
-        sel._select_on_ = function (v) { _make_selected_(v);  this.vs = this.vs.prepend(v); };
-        sel._select_off_ = function (v) { _make_unselected_(v); this.vs = this.vs.filter(isNot(v)); };
-        sel._selected_ = function () { return sel.vs; };
-
-        return sel;
+        var sel = new _BaseSelector_();
+        return new SelectorInterface( sel );
     }
 
     //---------------------------------------------------
 
     function SelVertex () {
-        var sel = {};
+        var sel = new _BaseSelector_();
 
-        sel.vs = NIL;
-        sel._unselect_all_ = function () {
-            sel._selected_().foreach(function (v) { _make_unselected_(v); });
-            sel.vs = NIL;
-        }
         sel._select_on_ = function (v) {
             sel._unselect_all_();
             _make_selected_(v);
-            this.vs = this.vs.prepend(v);
+            sel.vs = sel.vs.prepend(v);
         };
-        sel._select_off_ = function (v) { _make_unselected_(v); this.vs = this.vs.filter(isNot(v)); };
-        sel._selected_ = function () { return sel.vs; };
 
-        return sel;
+        return new SelectorInterface( sel );
     }
 
     //---------------------------------------------------
 
     function SelEdge () {
-        var sel = {};
+        var sel = new _BaseSelector_();
 
         function numSelected () { return sel._selected_().size(); }
 
-        sel.vs = NIL;
-        sel._unselect_all_ = function () {
-            sel._selected_().foreach(function (v) { _make_unselected_(v); });
-            sel.vs = NIL;
-        }
         sel._select_on_ = function (v) {
             var num = numSelected();
 
@@ -148,17 +148,15 @@
             }
 
             _make_selected_(v);
-            this.vs = this.vs.prepend(v);
+            sel.vs = sel.vs.prepend(v);
         };
-        sel._select_off_ = function (v) { _make_unselected_(v); this.vs = this.vs.filter(isNot(v)); };
-        sel._selected_ = function () { return sel.vs; };
 
-        return sel;
+        return new SelectorInterface( sel );
     }
 
     //---------------------------------------------------
 
-    var selector = new SelectorInterface(new SelEdge());
+    var selector = new SelEdge();
 
 
     /////////////////////////////////////////////////////
