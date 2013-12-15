@@ -43,6 +43,30 @@
 
 <script type="text/javascript">
 
+    function is (x)    { return function (y) { return x == y; }; }
+    function isNot (x) { return function (y) { return x != y; }; }
+
+    /////////// SELCTOR /////////////
+
+    function Selector () { this.vs = NIL; }
+    Selector.prototype.toggleSelect = function (vert) {
+        if( vert.SEL ) this.selectOff(vert);
+        else this.selectOn(vert);
+        vertsToUpdate = vertsToUpdate.prepend(vert);
+        console.log(this.vs.toArr());
+    };
+    Selector.prototype.selectOn = function (vert) {
+        vert.SEL = true;  vert.col = [1,1,1];
+        this.vs = this.vs.prepend(vert);
+    };
+    Selector.prototype.selectOff = function (vert) {
+        delete vert.SEL;  vert.col = [0,0,0];
+        this.vs = this.vs.filter(isNot(vert));
+    };
+
+    var selector = new Selector();
+    /////////////////////////////////////////////////////
+
     var _X_ = 0;  var _Y_ = 1;  var _Z_ = 2;
 
     var gl;
@@ -146,8 +170,8 @@
     }
     function handleKeyUp(event) {  currentlyPressedKeys[event.keyCode] = false;  }
 
-    var zoom = -15;
-    var tilt = 90;
+    var zoom = -5;
+    var tilt = 0;
     var spin = 0;
 
     function handleKeys() {
@@ -163,8 +187,6 @@
             spin += 2;
         if (currentlyPressedKeys[37])            // Right cursor key
             spin -= 2;
-        if (currentlyPressedKeys[32])            // Space key
-            selectNextVertex();
     }
 
     function handleKeyPress (keyCode) {
@@ -173,6 +195,18 @@
             Meshes.validate(mesh);
         }
     }
+
+    var MOUSE_CLICKED = false;
+    var MOUSE_X, MOUSE_Y;
+
+
+    function handleMouseClick (mouseX, mouseY) {
+        MOUSE_X = mouseX / gl.viewportWidth * 2 - 1;
+        MOUSE_Y = 1 - mouseY / gl.viewportHeight * 2;
+        MOUSE_CLICKED = true;
+        console.log("pressed", mouseX, mouseY, MOUSE_X, MOUSE_Y);
+    }
+
 
     var pointsPositionBuffer;
     var edgeVerticesIndexBuffer;
@@ -186,31 +220,6 @@
 
     var edgesToUpdate = NIL;
     var edgesToAdd = NIL;
-
-    var vertSelection = NIL;
-
-    var lastSelection = 0;
-
-    function selectVert (v) {
-        v.col = [1,1,1];
-        vertsToUpdate = vertsToUpdate.prepend(v);
-    }
-    function unselectVert (v) {
-        v.col = [0,0,0];
-        vertsToUpdate = vertsToUpdate.prepend(v);
-    }
-
-    function selectNextVertex () {
-        if( lastSelection + 200 < lastTime ) {
-            if( vertSelection != NIL )
-                unselectVert(vertSelection.val);
-
-            vertSelection = vertSelection.tail == NIL ? verts : vertSelection.tail;
-            selectVert(vertSelection.val);
-
-            lastSelection = lastTime;
-        }
-    }
 
     function initObjects () {
 
@@ -266,8 +275,6 @@
         edges = ListFromArr(mesh.edges);
 
         verts.foreach(function (v) { v.col = [0, 0, 0]; });
-
-        vertSelection = verts;
     }
 
     function initBuffers() {
@@ -335,7 +342,7 @@
     }
 
     function splitEdge () {
-        if( vertSelection == NIL )  return;
+        if( selector.vs == NIL )  return;
 
         /*
         var vert = vertSelection.val;
@@ -348,7 +355,7 @@
         */
 
 
-        var vert = vertSelection.val;
+        var vert = selector.vs.val;
 
         var face = vert.edge.face ? vert.edge.face : vert.edge.opp.face;
 
@@ -391,7 +398,25 @@
         mat4.rotate(mvMatrix, mvMatrix, degToRad(tilt), [1.0, 0.0, 0.0]);
 
         updateVerts();
+
+        if( MOUSE_CLICKED ) {
+//            console.log(pMatrix);            console.log(mvMatrix);            console.log(mat4.multiply(mat4.create(), pMatrix, mvMatrix));            console.log(verts);
+            verts.foreach(function (vert) {
+
+                var worldCoord = vert.loc.concat([1]);
+                var eyeCoord = vec4.transformMat4(vec4.create(), worldCoord, mvMatrix);
+                var clipCoord = vec4.transformMat4(vec4.create(), eyeCoord, pMatrix);
+                var ndcCoord = vec4.scale(vec4.create(), clipCoord, 1/clipCoord[3]);
+
+                var EPSI = 0.02;
+
+                if( Math.abs(ndcCoord[0] - MOUSE_X) < EPSI && Math.abs(ndcCoord[1] - MOUSE_Y) < EPSI )
+                    selector.toggleSelect(vert);
+            });
+        }
+
         drawAll();
+        MOUSE_CLICKED = false;
     }
 
     var lastTime = 0;
@@ -401,10 +426,10 @@
         if (lastTime != 0)
             var elapsed = timeNow - lastTime;
 
-        var v1 = verts.val;
-        var v2 = verts.tail.val;
+//        var v1 = verts.val;
+//        var v2 = verts.tail.val;
 
-        vertsToUpdate = vertsToUpdate.prepend(v1).prepend(v2);
+//        vertsToUpdate = vertsToUpdate.prepend(v1).prepend(v2);
 
         lastTime = timeNow;
     }
@@ -415,6 +440,7 @@
         drawScene();
         animate();
     }
+
 
     function webGLStart() {
         var canvas = document.getElementById("lesson09-canvas");
@@ -427,6 +453,16 @@
 
         document.onkeydown = handleKeyDown;
         document.onkeyup = handleKeyUp;
+
+        canvas.onmousedown = function(event) {
+            var x = event.clientX;   var y = event.clientY;
+            var rect = event.target.getBoundingClientRect();
+            if ( rect.left <= x && x <= rect.right && rect.top  <= y && y <= rect.bottom ) {
+                var mouseX = x - rect.left;
+                var mouseY = y - rect.top;
+                handleMouseClick(mouseX, mouseY);
+            }
+        }
 
         tick();
     }
