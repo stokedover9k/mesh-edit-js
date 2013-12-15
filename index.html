@@ -48,23 +48,119 @@
 
     /////////// SELCTOR /////////////
 
-    function Selector () { this.vs = NIL; }
-    Selector.prototype.toggleSelect = function (vert) {
-        if( vert.SEL ) this.selectOff(vert);
-        else this.selectOn(vert);
-        vertsToUpdate = vertsToUpdate.prepend(vert);
-        console.log(this.vs.toArr());
+    function _make_selected_(v) {
+        v.SEL = true;  v.col = [1,1,1];
+        vertsToUpdate = vertsToUpdate.prepend(v);
     };
-    Selector.prototype.selectOn = function (vert) {
-        vert.SEL = true;  vert.col = [1,1,1];
-        this.vs = this.vs.prepend(vert);
-    };
-    Selector.prototype.selectOff = function (vert) {
-        delete vert.SEL;  vert.col = [0,0,0];
-        this.vs = this.vs.filter(isNot(vert));
+    function _make_unselected_(v) {
+        console.log("unselecting", v);
+        delete v.SEL;  v.col = [0,0,0];
+        vertsToUpdate = vertsToUpdate.prepend(v);
     };
 
-    var selector = new Selector();
+    //---------------------------------------------------
+
+    // sel must implement:
+    // - _selected_()
+    // - _select_on_(vert)
+    // - _select_off_(vert)
+    // and optional:
+    // - _unselect_all_()
+    function SelectorInterface (sel) { this.sel = sel; }
+
+    SelectorInterface.prototype.toggleSelect = function (vert) {
+        if( vert.SEL )
+            this.sel._select_off_(vert);
+        else
+            this.sel._select_on_(vert);
+        console.log(this.selected().toArr());
+    };
+
+    SelectorInterface.prototype.selected = function() { return this.sel._selected_(); };
+
+    SelectorInterface.prototype.unselectAll = function() {
+        var sel = this.sel;
+        if( sel._unselect_all_ )
+            sel._unselect_all_();
+        else {
+            console.log("[WARNING] selector does not have unselectAll");
+            this.selected().foreach(function (v) { sel._select_off_(v); });
+        }
+    };
+
+    //---------------------------------------------------
+
+    function SelVertices () {
+        var sel = {};
+
+        sel.vs = NIL;
+        sel._select_on_ = function (v) { _make_selected_(v);  this.vs = this.vs.prepend(v); };
+        sel._select_off_ = function (v) { _make_unselected_(v); this.vs = this.vs.filter(isNot(v)); };
+        sel._selected_ = function () { return sel.vs; };
+
+        return sel;
+    }
+
+    //---------------------------------------------------
+
+    function SelVertex () {
+        var sel = {};
+
+        sel.vs = NIL;
+        sel._unselect_all_ = function () {
+            sel._selected_().foreach(function (v) { _make_unselected_(v); });
+            sel.vs = NIL;
+        }
+        sel._select_on_ = function (v) {
+            sel._unselect_all_();
+            _make_selected_(v);
+            this.vs = this.vs.prepend(v);
+        };
+        sel._select_off_ = function (v) { _make_unselected_(v); this.vs = this.vs.filter(isNot(v)); };
+        sel._selected_ = function () { return sel.vs; };
+
+        return sel;
+    }
+
+    //---------------------------------------------------
+
+    function SelEdge () {
+        var sel = {};
+
+        function numSelected () { return sel._selected_().size(); }
+
+        sel.vs = NIL;
+        sel._unselect_all_ = function () {
+            sel._selected_().foreach(function (v) { _make_unselected_(v); });
+            sel.vs = NIL;
+        }
+        sel._select_on_ = function (v) {
+            var num = numSelected();
+
+            if( num >= 2 )
+                return;
+            if( num == 1 ) {
+                var v0 = sel._selected_().val;
+                var ok = false;
+                v.eachEdge(function (e) { if( e.vert == v0 ) ok = true; })
+                if( !ok )
+                    return;
+            }
+
+            _make_selected_(v);
+            this.vs = this.vs.prepend(v);
+        };
+        sel._select_off_ = function (v) { _make_unselected_(v); this.vs = this.vs.filter(isNot(v)); };
+        sel._selected_ = function () { return sel.vs; };
+
+        return sel;
+    }
+
+    //---------------------------------------------------
+
+    var selector = new SelectorInterface(new SelEdge());
+
+
     /////////////////////////////////////////////////////
 
     var _X_ = 0;  var _Y_ = 1;  var _Z_ = 2;
@@ -342,7 +438,7 @@
     }
 
     function splitEdge () {
-        if( selector.vs == NIL )  return;
+        if( selector.selected() == NIL )  return;
 
         /*
         var vert = vertSelection.val;
@@ -355,7 +451,7 @@
         */
 
 
-        var vert = selector.vs.val;
+        var vert = selector.selected().val;
 
         var face = vert.edge.face ? vert.edge.face : vert.edge.opp.face;
 
