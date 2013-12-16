@@ -45,10 +45,10 @@
 <script type="text/javascript">
 
     var SELECTORS = {
-        vertexSelector : new SelVertex(),
-        verticesSelector : new SelVertices(),
-        edgeSelector : new SelEdge(),
-        faceSelector : new SelFace(),
+        vertexSelector   : new SelectorInterface( new SelVertex() ),
+        verticesSelector : new SelectorInterface( new SelVertices() ),
+        edgeSelector     : new SelectorInterface( new SelEdge() ),
+        faceSelector     : new SelectorInterface( new SelFace() ),
 
         get : function (sel) {
             if( sel === 'v' ) return SELECTORS.vertexSelector;
@@ -192,7 +192,7 @@
 
     function handleKeyPress (keyCode) {
         if( keyCode == 45 ) {                    // Insert key
-            splitEdge();
+            handleSplit();
             Meshes.validate(mesh);
         }
 
@@ -353,8 +353,12 @@
         vertsToUpdate = NIL;
     }
 
-    function splitEdge () {
+    function handleSplit () {
         if( selector.selected() == NIL )  return;
+
+        if( selector == SELECTORS.edgeSelector ) {
+
+        }
 
         /*
         var vert = vertSelection.val;
@@ -412,7 +416,6 @@
         updateVerts();
 
         if( MOUSE_CLICKED ) {
-//            console.log(pMatrix);            console.log(mvMatrix);            console.log(mat4.multiply(mat4.create(), pMatrix, mvMatrix));            console.log(verts);
             verts.foreach(function (vert) {
 
                 var worldCoord = vert.loc.concat([1]);
@@ -421,9 +424,10 @@
                 var ndcCoord = vec4.scale(vec4.create(), clipCoord, 1/clipCoord[3]);
 
                 var EPSI = 0.02;
-
-                if( Math.abs(ndcCoord[0] - MOUSE_X) < EPSI && Math.abs(ndcCoord[1] - MOUSE_Y) < EPSI )
+                if( Math.abs(ndcCoord[0] - MOUSE_X) < EPSI && Math.abs(ndcCoord[1] - MOUSE_Y) < EPSI ) {
                     selector.toggleSelect(vert);
+                    console.log(selector);
+                }
             });
         }
 

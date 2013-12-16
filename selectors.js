@@ -48,8 +48,9 @@ SelectorInterface.prototype.unselectAll = function() {
 
 //---------------------------------------------------
 
-function _BaseSelector_() { this.vs = NIL; }
+function _BaseSelector_() { }
 
+_BaseSelector_.prototype.vs = NIL;
 _BaseSelector_.prototype._select_on_ = function (v) {
     _make_selected_(v);  this.vs = this.vs.prepend(v);
 };
@@ -66,117 +67,116 @@ _BaseSelector_.prototype._unselect_all_ = function () {
 
 //---------------------------------------------------
 
-function SelVertices () {
-    var sel = new _BaseSelector_();
-    return new SelectorInterface( sel );
-}
+SelVertices = function () { };
+SelVertices.prototype = new _BaseSelector_;
 
 //---------------------------------------------------
 
-function SelVertex () {
-    var sel = new _BaseSelector_();
+SelVertex = function () { };
+SelVertex.prototype = new _BaseSelector_;
 
-    sel._select_on_ = function (v) {
-        sel._unselect_all_();
-        _make_selected_(v);
-        sel.vs = sel.vs.prepend(v);
-    };
-
-    return new SelectorInterface( sel );
-}
+SelVertex.prototype._select_on_ = function (v) {
+    this._unselect_all_();
+    this.constructor.prototype._select_on_.call(this, v); 
+};
 
 //---------------------------------------------------
 
-function SelEdge () {
-    var sel = new _BaseSelector_();
+SelEdge = function () { };
+SelEdge.prototype = new _BaseSelector_;
 
-    function numSelected () { return sel._selected_().size(); }
+SelEdge.prototype._select_on_ = function (v) {
+    var num = this._selected_().size();
 
-    sel._select_on_ = function (v) {
-        var num = numSelected();
+    if( num >= 2 )
+        return;
+    if( num == 1 ) {
+        var v0 = this._selected_().val;
 
-        if( num >= 2 )
-            return;
-        if( num == 1 ) {
-            var v0 = sel._selected_().val;
-            var ok = false;
-            v.eachEdge(function (e) { if( e.vert == v0 ) ok = true; })
-            if( !ok )
-                return;
+        var edge = Arr.find( v0.allEdges(), function (e) {
+            return e.vert === v;
+        });
+
+        if( edge ) {
+            this.edge = edge;
         }
-
-        _make_selected_(v);
-        sel.vs = sel.vs.prepend(v);
-    };
-
-    return new SelectorInterface( sel );
-}
-
-//---------------------------------------------------
-
-function SelFace () {
-    var sel = new _BaseSelector_();
-
-    sel._select_off_ = function (v) {
-        console.log("[WARNING] cannot unselect vertices during face selection; restart selector.");
-    };
-
-    sel._select_on_ = function (v) {
-        var num = sel._selected_().size();
-
-        if( num == 0 ) {
-            // do nothing
-        }
-        else if( num == 1 ) {
-            var v0 = sel._selected_().val;
-
-            var e = Arr.find( v0.allEdges(), function (e) {
-                return e.vert == v;
-            });
-
-            if( e ) {
-                sel.face1 = e.face;
-                sel.face2 = e.opp.face;
-                console.log(sel.face1, sel.face2);
-            }
-            else return;
-        }
-        else if( num >= 2 ) {
-            var v0 = sel._selected_().val;
-
-            // find an edge belonging to one of the faces being selected attached to the new vertex
-            var edge = Arr.find( v.allEdges(), function (e) {
-                return e.face === sel.face1 || e.face === sel.face2;
-            });
-
-            if( edge ) {
-
-                // New edge has an opposite face F. If all selected vertices are between edge.face
-                // and F, we cannot make the decision regarding which face is being selected.
-                if( sel.vs.map(function (v) {
-                    return Arr.find( v.allEdges(), function (e) {   // v -> v.edge which belongs to face
-                        return e.face === edge.face;
-                    } );
-                }).exists(function (e) { return e.opp.face !== edge.opp.face; })) {
-                    // complete face selection
-                    sel.face = edge.face;
-                    delete sel.face1;
-                    delete sel.face2;
-
-                    edge.eachEdge(function (e) {
-                        if( !_is_selected_(e.vert) ) {
-                            _make_selected_(e.vert);
-                            sel.vs = sel.vs.prepend(e.vert);
-                        }
-                    });
-                    return;
-                }
-            } else return;
-        }
-
-        _make_selected_(v);
-        sel.vs = sel.vs.prepend(v);
+        else return;
     }
 
-    return new SelectorInterface( sel );
+    this.constructor.prototype._select_on_.call(this, v);
+};
+
+SelEdge.prototype._select_off_ = function (v) {
+    this.constructor.prototype._select_off_.call(this, v); 
+    delete this.edge;
+}
+
+SelEdge.prototype._unselect_all_ = function () {
+    this.constructor.prototype._unselect_all_.call(this); 
+    delete this.edge;
+}
+
+//---------------------------------------------------
+
+SelFace = function () { };
+SelFace.prototype = new _BaseSelector_;
+
+SelFace.prototype._select_off_ = function (v) {
+    console.log("[WARNING] cannot unselect vertices during face selection; restart selector.");
+};
+
+SelFace.prototype._select_on_ = function (v) {
+    var sel = this;
+    var num = sel._selected_().size();
+
+    if( num == 0 ) {
+        // do nothing
+    }
+    else if( num == 1 ) {
+        var v0 = sel._selected_().val;
+
+        var e = Arr.find( v0.allEdges(), function (e) {
+            return e.vert == v;
+        });
+
+        if( e ) {
+            sel.face1 = e.face;
+            sel.face2 = e.opp.face;
+            console.log(sel.face1, sel.face2);
+        }
+        else return;
+    }
+    else if( num >= 2 ) {
+        var v0 = sel._selected_().val;
+
+        // find an edge belonging to one of the faces being selected attached to the new vertex
+        var edge = Arr.find( v.allEdges(), function (e) {
+            return e.face === sel.face1 || e.face === sel.face2;
+        });
+
+        if( edge ) {
+
+            // New edge has an opposite face F. If all selected vertices are between edge.face
+            // and F, we cannot make the decision regarding which face is being selected.
+            if( sel.vs.map(function (v) {
+                return Arr.find( v.allEdges(), function (e) {   // v -> v.edge which belongs to face
+                    return e.face === edge.face;
+                } );
+            }).exists(function (e) { return e.opp.face !== edge.opp.face; })) {
+                // complete face selection
+                sel.face = edge.face;
+                delete sel.face1;
+                delete sel.face2;
+
+                edge.eachEdge(function (e) {
+                    if( !_is_selected_(e.vert) ) {
+                        sel.constructor.prototype._select_on_.call(sel, e.vert);
+                    }
+                });
+                return;
+            }
+        } else return;
+    }
+
+    this.constructor.prototype._select_on_.call(this, v);
 }
