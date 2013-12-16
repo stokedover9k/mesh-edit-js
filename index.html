@@ -331,14 +331,18 @@
     function drawAll () {
         gl.uniform3f(shaderProgram.colorUniform, .5, .5, .1);
 
+//        selector.selected().foreach(function (v) { updateVertexColor(v, SELECTED_COLOR);  });
+
         gl.bindBuffer(gl.ARRAY_BUFFER, pointsPositionBuffer);
-        var stride = pointsPositionBuffer.itemSize * 4;  // 4 is the number of bytes per FLOAT
+        var stride = pointsPositionBuffer.itemSize * Float32Array.BYTES_PER_ELEMENT;
         gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, stride, 0);
         gl.vertexAttribPointer(shaderProgram.vertexColorAttribute,    3, gl.FLOAT, false, stride, stride / 2);
         setMatrixUniforms();
         gl.drawArrays(gl.POINTS, 0, pointsPositionBuffer.numItems);
 
         gl.uniform3f(shaderProgram.colorUniform, .5, .1, .1);
+
+//        selector.selected().foreach(function (v) { updateVertexColor(v, UNSELECTED_COLOR); });
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeVerticesIndexBuffer);
         gl.drawElements(gl.LINES, edgeVerticesIndexBuffer.numElements, gl.UNSIGNED_SHORT, 0);
@@ -352,6 +356,18 @@
                 new Float32Array(v.loc.concat(v.col)));
         });
         vertsToUpdate = NIL;
+    }
+
+    function updateVertexPosition (v) {
+        gl.bufferSubData(gl.ARRAY_BUFFER, v.id * pointsPositionBuffer.itemSize * Float32Array.BYTES_PER_ELEMENT, new Float32Array(v.loc));
+    }
+
+    function updateVertexColor (v, col) {
+        var color_offset = 3;
+        gl.bufferSubData(gl.ARRAY_BUFFER,
+            (v.id * pointsPositionBuffer.itemSize + color_offset) * Float32Array.BYTES_PER_ELEMENT,
+            new Float32Array(col)
+        );
     }
 
     function handleSplit () {
@@ -389,6 +405,7 @@
 
         var edge = selector.sel.edge;
         mesh.rotateEdge(edge);
+
         selector.unselectAll();
         selector.toggleSelect(edge.vert);
         selector.toggleSelect(edge.opp.vert);

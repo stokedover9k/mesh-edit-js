@@ -161,7 +161,7 @@ Mesh.prototype.splitFaceAt = function(f0, v0) {
 
   f0.edge = ne1;
 
-  return f1;
+  return ne0;  // return the new edge pointing to the new face
 };
 
 // Splits the edge at the midpoint m and splits its two adjacent edges from m.
@@ -169,16 +169,23 @@ Mesh.prototype.split2Faces = function(edge) {
   var f1 = edge.face, f2 = edge.opp.face;
   var vert = this.split(edge);
 
-  if( f1 )   this.splitFaceAt(f1, vert);
-  if( f2 )   this.splitFaceAt(f2, vert);
+  res = [];
+  if( f1 )   res.push(this.splitFaceAt(f1, vert));
+  if( f2 )   res.push(this.splitFaceAt(f2, vert));
+
+  return res;  // return two new edges: first one is on the side of @arg edge, second one is opposite of it
 };
 
 // Splits each edge e of the given face at midpoint m and splits face and its
 // neighbor across e at m.
 Mesh.prototype.splitFaceAndNeighbors = function(face) {
   var edges = face.allEdges();
-  for( e in edges )
-    this.split2Faces(edges[e]);
+  var firstNew = null;
+  for( e in edges ) {
+    var res = this.split2Faces(edges[e]);
+    if( !firstNew ) firstNew = res[0];
+  }
+  this.rotateEdge(firstNew);
 };
 
 Mesh.prototype.split = function(edge) {

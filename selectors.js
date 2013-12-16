@@ -1,15 +1,18 @@
 function is (x)    { return function (y) { return x == y; }; }
 function isNot (x) { return function (y) { return x != y; }; }
 
+var SELECTED_COLOR = [1,1,1];
+var UNSELECTED_COLOR = [0,0,0];
+
 /////////// SELCTOR /////////////
 
 function _make_selected_(v) {
-    v.SEL = true;  v.col = [1,1,1];
+    v.SEL = true;  v.col = SELECTED_COLOR;
     vertsToUpdate = vertsToUpdate.prepend(v);
 };
 function _make_unselected_(v) {
     console.log("unselecting", v);
-    delete v.SEL;  v.col = [0,0,0];
+    delete v.SEL;  v.col = UNSELECTED_COLOR;
     vertsToUpdate = vertsToUpdate.prepend(v);
 };
 function _is_selected_ (v) {
