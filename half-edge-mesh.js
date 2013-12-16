@@ -46,6 +46,14 @@ Face.prototype.eachVert = function(func) {
   } while( e != this.edge );
 };
 
+Edge.prototype.eachEdge = function(func) {
+  var e = this;
+  do {
+    func(e);
+    e = e.next;
+  } while( e != this );
+};
+
 Edge.prototype.prev = function() {
   edge = this.next;
   while( edge.next != this )

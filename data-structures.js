@@ -52,16 +52,35 @@ List.prototype.findWhere = function(pred) {
   return NIL;
 };
 
+List.prototype.map = function(func) {
+  if( this == NIL )
+    return NIL;
+  return new List(func(this.val), this.tail.map(func));
+};
+
 List.prototype.foreach = function(func) {
   for(var l = this; l != NIL; l = l.tail )
     func(l.val);
 };
 
+List.prototype.forall = function(pred) {
+  for(var l = this; l != NIL; l = l.tail )
+    if( !pred(l.val) )
+      return false;
+  return true;
+};
+
+List.prototype.exists = function(pred) {
+  for(var l = this; l != NIL; l = l.tail )
+    if( pred(l.val) )
+      return true;
+  return false;
+};
+
 List.prototype.size = function(counter) {
-  if( this == NIL )
-    return 0;
-  else
-    return 1 + this.tail.size();
+  var n = 0;
+  for(var l = this; l != NIL; l = l.tail ) n++;
+  return n;
 };
 
 List.prototype.splitBy = function(pred, pair) {
@@ -78,3 +97,35 @@ List.prototype.splitBy = function(pred, pair) {
 
   return dowork(this, pred);
 };
+
+//============================================//
+//                  Arrays                    //
+//============================================//
+
+Arr = {};
+
+Arr.exists = function (arr, pred) {
+  for (var i = arr.length - 1; i >= 0; i--)
+    if( pred(arr[i]) )
+      return true;
+  return false;
+}
+
+Arr.forall = function (arr, pred) {
+  for (var i = arr.length - 1; i >= 0; i--)
+    if( !pred(arr[i]) )
+      return false;
+  return true;
+}
+
+Arr.find = function (arr, pred) {
+  for (var i = arr.length - 1; i >= 0; i--)
+    if( pred(arr[i]) )
+      return arr[i];
+  return null;
+}
+
+Arr.foreach = function (arr, func) {
+  for (var i = arr.length - 1; i >= 0; i--)
+    func(arr[i]);
+}
