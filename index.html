@@ -191,10 +191,8 @@
     }
 
     function handleKeyPress (keyCode) {
-        if( keyCode == 45 ) {                    // Insert key
+        if( keyCode == 45 )                      // Insert key
             handleSplit();
-            Meshes.validate(mesh);
-        }
 
         else if( keyCode == 69 )            // 'e'
             SELECTORS.set('e');
@@ -357,8 +355,20 @@
         if( selector.selected() == NIL )  return;
 
         if( selector == SELECTORS.edgeSelector ) {
-
+            if( selector.sel.edge ) {
+                console.log("splitting at edge", selector.sel.edge);
+                mesh.split2Faces(selector.sel.edge);
+                selector.unselectAll();
+            }
         }
+        else if( selector == SELECTORS.faceSelector ) {
+            if( selector.sel.face ) {
+                console.log("splitting at face", selector.sel.face);
+                mesh.splitFaceAndNeighbors(selector.sel.face);
+                selector.unselectAll();
+            }
+        }
+        else console.log("[WARNING] can't split in this selection mode.");
 
         /*
         var vert = vertSelection.val;
@@ -370,13 +380,13 @@
         edges = ListFromArr(mesh.edges);
         */
 
-
+        /*
         var vert = selector.selected().val;
 
         var face = vert.edge.face ? vert.edge.face : vert.edge.opp.face;
 
         mesh.splitFaceAndNeighbors(face);
-
+        */
 //        mesh.split2Faces(vert.edge);
 
 /*
@@ -388,14 +398,14 @@
         if( f1 )   mesh.splitFaceAt(f1, newVert);
         if( f2 )   mesh.splitFaceAt(f2, newVert);
 */
-        console.log("validating...");
-
-
 
     //////////////////////////////////////
+        console.log("validating...");
+        Meshes.validate(mesh);
+        console.log("Validation complete.");
+        
         verts = ListFromArr(mesh.verts);
         edges = ListFromArr(mesh.edges);
-        Meshes.validate(mesh);           console.log("Validation complete.");
         initBuffers();
     }
 
@@ -418,7 +428,7 @@
         if( MOUSE_CLICKED ) {
             verts.foreach(function (vert) {
 
-                var worldCoord = vert.loc.concat([1]);
+                var worldCoord = vec4.fromValues(vert.loc[0], vert.loc[1], vert.loc[2], 1);
                 var eyeCoord = vec4.transformMat4(vec4.create(), worldCoord, mvMatrix);
                 var clipCoord = vec4.transformMat4(vec4.create(), eyeCoord, pMatrix);
                 var ndcCoord = vec4.scale(vec4.create(), clipCoord, 1/clipCoord[3]);

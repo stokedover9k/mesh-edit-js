@@ -69,7 +69,7 @@ Edge.prototype.split = function() {
   var e1 = new Edge(this.vert);
   var e2 = new Edge(this.opp.vert);
 
-  var vert = new Vert(loc);
+  var vert = new Vert([loc[0], loc[1], loc[2]]);
 
   this.vert = vert;
   this.opp.vert = vert;
