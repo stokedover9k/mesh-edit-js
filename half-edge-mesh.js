@@ -121,6 +121,21 @@ Mesh.prototype.addVert = function(v) { v.id = this.numVerts;  this.numVerts++;  
 Mesh.prototype.addEdge = function(e) { e.id = this.numEdges;  this.numEdges++;  this.edges.push(e);  return e; };
 Mesh.prototype.addFace = function(f) { f.id = this.numFaces;  this.numFaces++;  this.faces.push(f);  return f; };
 
+Mesh.prototype.rotateEdge = function(a) {
+  var b = a.opp,  anext = a.next,  bnext = b.next,  aprev = a.prev(),  bprev = b.prev();
+
+  a.vert = anext.vert;    b.vert = bnext.vert;
+  a.next = anext.next;    b.next = bnext.next;
+  aprev.next = bnext;     bprev.next = anext;
+  anext.face = b.face;    bnext.face = a.face;
+  anext.next = b;         bnext.next = a;
+
+  if( aprev.vert.edge == a )  aprev.vert.edge = bnext;
+  if( bprev.vert.edge == b )  bprev.vert.edge = anext;
+  if( a.face ) a.face.edge = a;
+  if( b.face ) b.face.edge = b;
+};
+
 Mesh.prototype.splitFaceAt = function(f0, v0) {
   var mesh = this;
 

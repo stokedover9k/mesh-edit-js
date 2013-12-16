@@ -194,6 +194,9 @@
         if( keyCode == 45 )                      // Insert key
             handleSplit();
 
+        if( keyCode == 82 )                 // 'r'
+            handleRotate();
+
         else if( keyCode == 69 )            // 'e'
             SELECTORS.set('e');
         else if( keyCode == 70 )            // 'f'
@@ -370,41 +373,30 @@
         }
         else console.log("[WARNING] can't split in this selection mode.");
 
-        /*
-        var vert = vertSelection.val;
-
-        mesh.splitAtVertex(vert);        console.log("Split complete. Validating...");
-        Meshes.validate(mesh);           console.log("Validation complete.");
-
-        verts = ListFromArr(mesh.verts);
-        edges = ListFromArr(mesh.edges);
-        */
-
-        /*
-        var vert = selector.selected().val;
-
-        var face = vert.edge.face ? vert.edge.face : vert.edge.opp.face;
-
-        mesh.splitFaceAndNeighbors(face);
-        */
-//        mesh.split2Faces(vert.edge);
-
-/*
-        var newVert = mesh.split(vert.edge);
-
-        var f1 = newVert.edge.face;
-        var f2 = newVert.edge.opp.face;
-
-        if( f1 )   mesh.splitFaceAt(f1, newVert);
-        if( f2 )   mesh.splitFaceAt(f2, newVert);
-*/
-
-    //////////////////////////////////////
         console.log("validating...");
         Meshes.validate(mesh);
         console.log("Validation complete.");
         
         verts = ListFromArr(mesh.verts);
+        edges = ListFromArr(mesh.edges);
+        initBuffers();
+    }
+
+    function handleRotate () {
+        if( selector != SELECTORS.edgeSelector || !selector.sel.edge ) {
+            console.log("[WARNING] can't rotate edge");   return;
+        }
+
+        var edge = selector.sel.edge;
+        mesh.rotateEdge(edge);
+        selector.unselectAll();
+        selector.toggleSelect(edge.vert);
+        selector.toggleSelect(edge.opp.vert);
+
+        console.log("validating...");
+        Meshes.validate(mesh);
+        console.log("Validation complete.");
+
         edges = ListFromArr(mesh.edges);
         initBuffers();
     }
