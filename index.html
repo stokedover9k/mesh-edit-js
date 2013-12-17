@@ -219,12 +219,28 @@
         MOUSE_X = mouseX / gl.viewportWidth * 2 - 1;
         MOUSE_Y = 1 - mouseY / gl.viewportHeight * 2;
         MOUSE_CLICKED = true;
-//        console.log("pressed", mouseX, mouseY, MOUSE_X, MOUSE_Y);
     }
 
     var vbuf;
     var ebuf;
-    var edgeVerticesIndexBuffer;
+
+    function updateVertCol (v) {
+        ensureBoundBuffer(vbuf);
+        vbuf.glSetCol(v.buf_id, v.col);
+    }
+    function updateVertLoc (v) {
+        ensureBoundBuffer(vbuf);
+        vbuf.glSetLoc(v.buf_id, v.loc);
+    }
+    function updateEdgeCol (e) {
+        ensureBoundBuffer(ebuf);
+        ebuf.glSetCol(e.buf_id, e.col);
+    }
+    function updateEdgeLoc (e) {
+        ensureBoundBuffer(ebuf);
+        ebuf.glSetLoc1(e.buf_id, e.loc);
+        ebuf.glSetLoc2(e.buf_id, e.opp.loc);
+    }
 
     var mesh;
     var verts = NIL;
@@ -297,6 +313,7 @@
         //------ Vertex buffer -------
 
         vbuf = new BVertData();
+        vbuf.name = 'vbuf';
 
         vbuf['LOC'].shaderAttr = shaderProgram.vertexPositionAttribute;
         vbuf['COL'].shaderAttr = shaderProgram.vertexColorAttribute;
@@ -306,7 +323,7 @@
 
         verts.foreachIndexed(function (v, i) {
             v.col = UNSELECTED_COLOR;
-            v.id = i;
+            v.buf_id = i;
             vbuf.setLoc(points, i, v.loc);
             vbuf.setCol(points, i, v.col);
         });
@@ -316,6 +333,7 @@
         //------ Edge buffer -------
 
         ebuf = new BEdgeData();
+        ebuf.name = 'ebuf';
 
         ebuf['LOC'].shaderAttr = shaderProgram.vertexPositionAttribute;
         ebuf['COL'].shaderAttr = shaderProgram.vertexColorAttribute;
@@ -352,13 +370,11 @@
 
         vbuf.bufferDraw(gl.POINTS);
         ebuf.bufferDraw(gl.LINES);
-
-        vbuf.bufferBind();  // bind for vertex edit
     }
 
     function updateVerts () {
         vertsToUpdate.foreach(function (v) {
-            vbuf.glSetCol(v.id, v.col);
+            vbuf.glSetCol(v.buf_id, v.col);
         });
         vertsToUpdate = NIL;
     }

@@ -1,3 +1,11 @@
+var BOUND_BUFFER = null;
+
+function ensureBoundBuffer(buf) {
+  if( BOUND_BUFFER === buf )
+    return;
+  buf.bufferBind();
+  BOUND_BUFFER = buf;
+}
 
 BField = function (name, len, offset) {
   this.name = name;
@@ -53,11 +61,8 @@ BFieldSet.prototype.bufferData = function(bufType, data, drawMode) {
 var XXX = 0;
 
 BFieldSet.prototype.bufferDraw = function(bufType, drawType) {
-  if( XXX < 6 ) {
-    XXX++;
-    console.log(this);
-  }
-  gl.bindBuffer(bufType, this.dataBuffer);
+//  gl.bindBuffer(bufType, this.dataBuffer);
+  ensureBoundBuffer(this);
   var stride = this.itemSize * Float32Array.BYTES_PER_ELEMENT;
   for( f in this.fields ) {
     f = this.fields[f];
@@ -103,6 +108,7 @@ BVertData.prototype.setLoc = function (data, index, loc) {
 }
 
 BVertData.prototype.glSetCol = function(index, col) {
+  console.log("coloring...", BOUND_BUFFER.name, index, col);
   this.glSet(gl.ARRAY_BUFFER, index, this['COL'].offset, col);
 };
 

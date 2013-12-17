@@ -229,11 +229,15 @@ Meshes.validate = function (mesh) {
   var faces = mesh.faces;
   var edges = mesh.edges;
   
+  var vids = new Array(verts.length);
+
   for( v in verts ) {
     if( typeof verts[v].id != 'number' ) {
       console.log(verts[v]);
       throw "vertex does not have an id";
     }
+
+    vids[verts[v].id] = 1;
 
     if( !verts[v].edge ) {
       console.log(verts[v]);
@@ -254,6 +258,11 @@ Meshes.validate = function (mesh) {
       })
     }
   }
+
+  for (var i = vids.length - 1; i >= 0; i--) {
+    if( !vids[i] )
+      throw "did not find all expected ids.";
+  };
 
   for( f in faces ) {
     if( typeof faces[f].id != 'number' ) {

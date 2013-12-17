@@ -6,18 +6,32 @@ var UNSELECTED_COLOR = [.5,.5,.5];
 
 /////////// SELCTOR /////////////
 
-function _make_selected_(v) {
-    v.SEL = true;  v.col = SELECTED_COLOR;
-    vertsToUpdate = vertsToUpdate.prepend(v);
+function _mark_selected_   (v) { v.SEL = true; }
+function _mark_unselected_ (v) { delete v.SEL; }
+function _is_selected_     (v) { return v.SEL ? true : false; }
+
+function _color_selected_v_   (v) { v.col =   SELECTED_COLOR; updateVertCol(v); }
+function _color_unselected_v_ (v) { v.col = UNSELECTED_COLOR; updateVertCol(v); }
+
+function _color_selected_e_   (e) { e.col =   SELECTED_COLOR; updateEdgeCol(e); }
+function _color_unselected_e_ (e) { e.col = UNSELECTED_COLOR; updateEdgeCol(e); }
+
+function _make_selected_v_(v) {
+    _mark_selected_(v);
+    _color_selected_v_(v);
 };
-function _make_unselected_(v) {
-    console.log("unselecting", v);
-    delete v.SEL;  v.col = UNSELECTED_COLOR;
-    vertsToUpdate = vertsToUpdate.prepend(v);
+function _make_unselected_v_(v) {
+    _mark_unselected_(v);
+    _color_unselected_v_(v);
 };
-function _is_selected_ (v) {
-    return v.SEL ? true : false;
-};
+function _make_selected_e_ (e) {
+    _mark_selected_(e);
+    _color_selected_e_(e);
+}
+function _make_unselected_e_ (e) {
+    _mark_unselected_(e);
+    _color_unselected_e_(e);
+}
 
 //---------------------------------------------------
 
@@ -54,17 +68,18 @@ SelectorInterface.prototype.unselectAll = function() {
 function _BaseSelector_() { }
 
 _BaseSelector_.prototype.vs = NIL;
+
 _BaseSelector_.prototype._select_on_ = function (v) {
-    _make_selected_(v);  this.vs = this.vs.prepend(v);
+    _make_selected_v_(v);  this.vs = this.vs.prepend(v);
 };
 _BaseSelector_.prototype._select_off_ = function (v) {
-    _make_unselected_(v); this.vs = this.vs.filter(isNot(v));
+    _make_unselected_v_(v); this.vs = this.vs.filter(isNot(v));
 };
 _BaseSelector_.prototype._selected_ = function () {
     return this.vs;
 };
 _BaseSelector_.prototype._unselect_all_ = function () {
-    this._selected_().foreach(function (v) { _make_unselected_(v); });
+    this._selected_().foreach(function (v) { _make_unselected_v_(v); });
     this.vs = NIL;
 }
 
@@ -101,22 +116,45 @@ SelEdge.prototype._select_on_ = function (v) {
         });
 
         if( edge ) {
+            this.constructor.prototype._select_on_.call(this, v);
+            _color_unselected_v_(v);
+            _color_unselected_v_(v0);
+
             this.edge = edge;
+            _make_selected_e_(edge);
         }
         else return;
     }
-
-    this.constructor.prototype._select_on_.call(this, v);
+    else {  // no vertices selected before-hand
+        this.constructor.prototype._select_on_.call(this, v);
+    }
 };
 
 SelEdge.prototype._select_off_ = function (v) {
-    this.constructor.prototype._select_off_.call(this, v); 
-    delete this.edge;
+    var num = this._selected_().size();
+
+    if( num == 0 )
+        return;
+    else if( num == 1 ) {
+        this.constructor.prototype._select_off_.call(this, v); 
+    }
+    else {  // two vertices selected
+        _make_unselected_e_( this.edge );
+        delete this.edge;
+
+        this.constructor.prototype._select_off_.call(this, v); 
+        _color_selected_v_(this._selected_().val);
+
+        if( this._selected_().size() != 1 ) throw "something went terribly wrong";
+    }
 }
 
 SelEdge.prototype._unselect_all_ = function () {
-    this.constructor.prototype._unselect_all_.call(this); 
-    delete this.edge;
+    this.constructor.prototype._unselect_all_.call(this);
+    if( this.edge ) {
+        _make_unselected_e_(this.edge);
+        delete this.edge;
+    }
 }
 
 //---------------------------------------------------
