@@ -63,6 +63,12 @@ List.prototype.foreach = function(func) {
     func(l.val);
 };
 
+List.prototype.foreachIndexed = function(func) {
+  var i = 0;
+  for(var l = this; l != NIL; l = l.tail )
+    func(l.val, i++);
+};
+
 List.prototype.forall = function(pred) {
   for(var l = this; l != NIL; l = l.tail )
     if( !pred(l.val) )
@@ -129,3 +135,16 @@ Arr.foreach = function (arr, func) {
   for (var i = arr.length - 1; i >= 0; i--)
     func(arr[i]);
 }
+
+Arr.read = function (dest, src, offset, n) {
+  for( var i = 0; i < n; i++ )
+    dest[i] = src[offset + i];
+  return dest;
+}
+
+Arr.copy = function (dest, src, offset_src, offset_dest, n) {
+  for( var i = 0; i < n; i++ )
+    dest[offset_dest + i] = src[offset_src + i];
+  return dest;
+}
+

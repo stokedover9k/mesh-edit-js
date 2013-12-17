@@ -16,6 +16,7 @@
 <script type="text/javascript" src="data-structures.js"></script>
 <script type="text/javascript" src="selectors.js"></script>
 <script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="gl-buffers.js"></script>
 
 <script id="shader-fs" type="x-shader/x-fragment">
     precision mediump float;
@@ -291,8 +292,16 @@
     }
 
     function initBuffers() {
-        var SIZE = 6;
-        var points = Array(verts.size() * SIZE);
+        var SIZE = BVertData.len;
+        var points = new Float32Array(verts.size() * SIZE);
+
+        verts.foreachIndexed(function (v, i) {
+            v.id = i;
+            BVertData.setLoc(points, i, v.loc);
+            BVertData.setCol(points, i, v.col);
+        });
+
+        /*
         verts.foreach(function (v) {
             points[v.id * SIZE + 0] = v.loc[0];
             points[v.id * SIZE + 1] = v.loc[1];
@@ -302,6 +311,7 @@
             points[v.id * SIZE + 4] = v.col[1];
             points[v.id * SIZE + 5] = v.col[2];
         });
+*/
 
         pointsPositionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, pointsPositionBuffer);
