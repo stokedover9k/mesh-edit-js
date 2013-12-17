@@ -23,7 +23,8 @@
     uniform vec3 uColor;
     varying vec3 modColor;
     void main(void) {
-        gl_FragColor = vec4(uColor + modColor, 1.0);
+//        gl_FragColor = vec4(uColor + modColor, 1.0);
+        gl_FragColor = vec4(modColor, 1.0);
     }
 </script>
 
@@ -221,8 +222,8 @@
 //        console.log("pressed", mouseX, mouseY, MOUSE_X, MOUSE_Y);
     }
 
-
-    var pointsPositionBuffer;
+    var vbuf;
+    var ebuf;
     var edgeVerticesIndexBuffer;
 
     var mesh;
@@ -292,92 +293,74 @@
     }
 
     function initBuffers() {
-        var SIZE = BVertData.len;
+
+        //------ Vertex buffer -------
+
+        vbuf = new BVertData();
+
+        vbuf['LOC'].shaderAttr = shaderProgram.vertexPositionAttribute;
+        vbuf['COL'].shaderAttr = shaderProgram.vertexColorAttribute;
+
+        var SIZE = vbuf.itemSize;
         var points = new Float32Array(verts.size() * SIZE);
 
         verts.foreachIndexed(function (v, i) {
+            v.col = UNSELECTED_COLOR;
             v.id = i;
-            BVertData.setLoc(points, i, v.loc);
-            BVertData.setCol(points, i, v.col);
+            vbuf.setLoc(points, i, v.loc);
+            vbuf.setCol(points, i, v.col);
         });
 
-        /*
-        verts.foreach(function (v) {
-            points[v.id * SIZE + 0] = v.loc[0];
-            points[v.id * SIZE + 1] = v.loc[1];
-            points[v.id * SIZE + 2] = v.loc[2];
+        vbuf.bufferData(points);
 
-            points[v.id * SIZE + 3] = v.col[0];
-            points[v.id * SIZE + 4] = v.col[1];
-            points[v.id * SIZE + 5] = v.col[2];
-        });
-*/
+        //------ Edge buffer -------
 
-        pointsPositionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, pointsPositionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.DYNAMIC_DRAW);
-        pointsPositionBuffer.itemSize = SIZE;
-        pointsPositionBuffer.numItems = verts.size();
+        ebuf = new BEdgeData();
 
+        ebuf['LOC'].shaderAttr = shaderProgram.vertexPositionAttribute;
+        ebuf['COL'].shaderAttr = shaderProgram.vertexColorAttribute;
 
+        SIZE = ebuf.itemSize;
+        points = new Float32Array(edges.size() * SIZE);
 
-        var edgeElementOffsets = [];
+        var index = 0;
         edges.foreach(function (e) {
-            if( e._already_drawn_ )
+            if( e._already_drawn_ ) {
+                e.buf_id = e.opp.buf_id;
                 delete e._already_drawn_;
+            }
             else {
-                edgeElementOffsets.push(e.vert.id)
-                edgeElementOffsets.push(e.opp.vert.id);
+                e.buf_id = index;
+                e.col = UNSELECTED_COLOR;
+                ebuf.setCol(points, index, e.col);
+                ebuf.setLoc1(points, index, e.vert.loc);
+                ebuf.setLoc2(points, index, e.opp.vert.loc);
                 e.opp._already_drawn_ = true;
+                index++;
             }
         });
 
-        edgeVerticesIndexBuffer = gl.createBuffer();
-        edgeVerticesIndexBuffer.numElements = edgeElementOffsets.length;
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeVerticesIndexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(edgeElementOffsets), gl.STATIC_DRAW);
+        console.log(points);
+
+        ebuf.bufferData(points);
     }
 
     function drawAll () {
         gl.uniform3f(shaderProgram.colorUniform, .5, .5, .1);
 
-//        selector.selected().foreach(function (v) { updateVertexColor(v, SELECTED_COLOR);  });
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, pointsPositionBuffer);
-        var stride = pointsPositionBuffer.itemSize * Float32Array.BYTES_PER_ELEMENT;
-        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, stride, 0);
-        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute,    3, gl.FLOAT, false, stride, stride / 2);
         setMatrixUniforms();
-        gl.drawArrays(gl.POINTS, 0, pointsPositionBuffer.numItems);
 
-        gl.uniform3f(shaderProgram.colorUniform, .5, .1, .1);
+        vbuf.bufferDraw(gl.POINTS);
+        ebuf.bufferDraw(gl.LINES);
 
-//        selector.selected().foreach(function (v) { updateVertexColor(v, UNSELECTED_COLOR); });
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeVerticesIndexBuffer);
-        gl.drawElements(gl.LINES, edgeVerticesIndexBuffer.numElements, gl.UNSIGNED_SHORT, 0);
+        vbuf.bufferBind();  // bind for vertex edit
     }
 
     function updateVerts () {
         vertsToUpdate.foreach(function (v) {
-            gl.bufferSubData(
-                gl.ARRAY_BUFFER,
-                v.id * pointsPositionBuffer.itemSize * Float32Array.BYTES_PER_ELEMENT,
-                new Float32Array(v.loc.concat(v.col)));
+            vbuf.glSetCol(v.id, v.col);
         });
         vertsToUpdate = NIL;
-    }
-
-    function updateVertexPosition (v) {
-        gl.bufferSubData(gl.ARRAY_BUFFER, v.id * pointsPositionBuffer.itemSize * Float32Array.BYTES_PER_ELEMENT, new Float32Array(v.loc));
-    }
-
-    function updateVertexColor (v, col) {
-        var color_offset = 3;
-        gl.bufferSubData(gl.ARRAY_BUFFER,
-            (v.id * pointsPositionBuffer.itemSize + color_offset) * Float32Array.BYTES_PER_ELEMENT,
-            new Float32Array(col)
-        );
     }
 
     function handleSplit () {
@@ -470,11 +453,6 @@
         var timeNow = new Date().getTime();
         if (lastTime != 0)
             var elapsed = timeNow - lastTime;
-
-//        var v1 = verts.val;
-//        var v2 = verts.tail.val;
-
-//        vertsToUpdate = vertsToUpdate.prepend(v1).prepend(v2);
 
         lastTime = timeNow;
     }

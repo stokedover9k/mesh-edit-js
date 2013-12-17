@@ -13,22 +13,59 @@ BFieldSet = function (fields) {
     offset += fields[i].len;
   }
 
-  this.len = offset;
+  this.itemSize = offset;
   this.fields = fields;
+
+  this.dataBuffer = gl.createBuffer();
 }
 
 BFieldSet.prototype.put = function(data, fieldname, index, newdata) {
-  var offset = index * this.len + this[fieldname].offset;
+  var offset = index * this.itemSize + this[fieldname].offset;
   var n = this[fieldname].len;
   for( var i = 0; i < n; i++ )
     data[offset + i] = newdata[i];
 };
 
 BFieldSet.prototype.read = function(data, fieldname, index, out) {
-  var offset = index * this.len + this[fieldname].offset;
+  var offset = index * this.itemSize + this[fieldname].offset;
   var n = this[fieldname].len;
   for( var i = 0; i < n; i++ )
     out[i] = data[offset + i];
+};
+
+BFieldSet.prototype.glSet = function(bufType, index, elementOffset, data) {
+  gl.bufferSubData(
+    bufType,
+    (index * this.itemSize + elementOffset) * Float32Array.BYTES_PER_ELEMENT,
+    new Float32Array(data));
+}
+
+BFieldSet.prototype.bufferBind = function (bufType) {
+  gl.bindBuffer(bufType, this.dataBuffer);
+}
+
+BFieldSet.prototype.bufferData = function(bufType, data, drawMode) {
+  this.numItems = data.length / this.itemSize;
+  this.bufferBind(bufType);
+  gl.bufferData(bufType, data, drawMode);
+};
+
+var XXX = 0;
+
+BFieldSet.prototype.bufferDraw = function(bufType, drawType) {
+  if( XXX < 6 ) {
+    XXX++;
+    console.log(this);
+  }
+  gl.bindBuffer(bufType, this.dataBuffer);
+  var stride = this.itemSize * Float32Array.BYTES_PER_ELEMENT;
+  for( f in this.fields ) {
+    f = this.fields[f];
+    if( f.shaderAttr == null || f.shaderAttr == undefined )
+      throw "field does not have a shader attribute"
+    gl.vertexAttribPointer(f.shaderAttr, f.len, gl.FLOAT, false, stride, f.offset * Float32Array.BYTES_PER_ELEMENT);
+  }
+  gl.drawArrays(drawType, 0, this.numItems);
 };
 
 BLocField = function (name) { return new BField(name, 3); }
@@ -36,97 +73,125 @@ BColField = function (name) { return new BField(name, 3); }
 
 //=========================================
 
-BVertData = (function () {
+BVertData = function () {
   var LOC = BLocField("LOC");
   var COL = BColField("COL");
 
-  return new BFieldSet([LOC, COL]);
-})();
+  BFieldSet.call(this, [LOC, COL]);
+}
 
-BVertData.getCol = function (data, index, out) {
-  BVertData.read(data, 'COL', index, out);
+BVertData.prototype = Object.create(BFieldSet.prototype);
+
+BVertData.constructor = BVertData;
+
+BVertData.prototype.getCol = function (data, index, out) {
+  this.read(data, 'COL', index, out);
   return out;
 }
 
-BVertData.setCol = function (data, index, col) {
-  BVertData.put(data, 'COL', index, col);
+BVertData.prototype.setCol = function (data, index, col) {
+  this.put(data, 'COL', index, col);
 }
 
-BVertData.getLoc = function (data, index, out) {
-  BVertData.read(data, 'LOC', index, out);
+BVertData.prototype.getLoc = function (data, index, out) {
+  this.read(data, 'LOC', index, out);
   return out;
 }
 
-BVertData.setLoc = function (data, index, loc) {
-  BVertData.put(data, 'LOC', index, loc);
+BVertData.prototype.setLoc = function (data, index, loc) {
+  this.put(data, 'LOC', index, loc);
 }
+
+BVertData.prototype.glSetCol = function(index, col) {
+  this.glSet(gl.ARRAY_BUFFER, index, this['COL'].offset, col);
+};
+
+BVertData.prototype.glSetLoc = function(bufType, index, loc) {
+  gl.bufferSubData(
+    bufType,
+    (index * this.itemSize + this['LOC'].offset) * Float32Array.BYTES_PER_ELEMENT,
+    new Float32Array(loc));
+};
+
+BVertData.prototype.bufferBind = function() {
+  BFieldSet.prototype.bufferBind.call(this, gl.ARRAY_BUFFER);
+};
+
+BVertData.prototype.bufferData = function(data) {
+  BFieldSet.prototype.bufferData.call(this, gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+};
+
+BVertData.prototype.bufferDraw = function(drawingMode) {
+  BFieldSet.prototype.bufferDraw.call(this, gl.ARRAY_BUFFER, drawingMode)
+};
 
 //=========================================
 
-BEdgeData = (function () {
-  var LOC_1 = BLocField("LOC1");
-  var LOC_2 = BLocField("LOC2");
-  var COL_1 = BColField("COL1");
-  var COL_2 = BColField("COL2");
-
-  return new BFieldSet([LOC_1, COL_1, LOC_2, COL_2]);
-})();
-
-BEdgeData.getCol = function (data, index, out) {
-  BEdgeData.read(data, 'COL1', index, out);
-  return out;
+BEdgeData = function () {
+  BVertData.call(this);
 }
 
-BEdgeData.setCol = function (data, index, col) {
-  BEdgeData.put(data, 'COL1', index, col);
-  BEdgeData.put(data, 'COL2', index, col);
+BEdgeData.prototype = Object.create(BVertData.prototype);
+
+BEdgeData.constructor = BEdgeData;
+
+delete BEdgeData.prototype.getLoc;
+
+BEdgeData.prototype.getCol = function (data, index, out) {
+  return BVertData.prototype.getCol.call(this, data, index * 2, out);
 }
 
-BEdgeData.getLoc1 = function (data, index, out) {
-  BEdgeData.read(data, 'LOC1', index, out);
+BEdgeData.prototype.setCol = function (data, index, col) {
+  BVertData.prototype.setCol.call(this, data, index * 2,     col);
+  BVertData.prototype.setCol.call(this, data, index * 2 + 1, col);
 }
 
-BEdgeData.getLoc2 = function (data, index, out) {
-  BEdgeData.read(data, 'LOC2', index, out);
+BEdgeData.prototype.getLoc1 = function (data, index, out) {
+  return BVertData.prototype.getLoc.call(this, data, index * 2, out);
 }
 
-BEdgeData.setLoc1 = function (data, index, loc) {
-  BEdgeData.put(data, 'LOC1', index, loc);
+BEdgeData.prototype.getLoc2 = function (data, index, out) {
+  return BVertData.prototype.getLoc.call(this, data, index * 2 + 1, out);
 }
 
-BEdgeData.setLoc2 = function (data, index, loc) {
-  BEdgeData.put(data, 'LOC2', index, loc);
+BEdgeData.prototype.setLoc1 = function (data, index, loc) {
+  BVertData.prototype.setLoc.call(this, data, index * 2, loc);
+}
+
+BEdgeData.prototype.setLoc2 = function (data, index, loc) {
+  BVertData.prototype.setLoc.call(this, data, index * 2 + 1, loc);
 };
 
-//========================================
+BEdgeData.prototype.glSetCol = function(index, col) {
+  this.glSetCol1(index, col);
+  this.glSetCol2(index, col);
+};
 
-// --- test ---
-(function () {
+BEdgeData.prototype.glSetCol1 = function(index, col) {
+  BVertData.prototype.glSetCol.call(this, index * 2, col);
+};
 
-  console.log("doing stuff")
+BEdgeData.prototype.glSetCol2 = function(index, col) {
+  BVertData.prototype.glSetCol.call(this, index * 2 + 1, col);
+};
 
-  function makeEdge(i) {
-    var a = i * 4, b = a+1, c = b+1, d = c+1;
-    return [a,a,a, b,b,b, c,c,c, d,d,d];
-  }
+BEdgeData.prototype.glSetLoc1 = function(index, loc) {
+  BVertData.prototype.glSetLoc.call(this, index * 2, loc);
+};
 
-  var data = [];
-  data = data.concat(makeEdge(0));
-  data = data.concat(makeEdge(1));
+BEdgeData.prototype.glSetLoc2 = function(index, loc) {
+  BVertData.prototype.glSetLoc.call(this, index * 2 + 1, loc);
+};
 
-  console.log(data);
+BEdgeData.prototype.bufferBind = function() {
+  BFieldSet.prototype.bufferBind.call(this, gl.ARRAY_BUFFER);
+};
 
-  var out = new Array(3);
-  BEdgeData.getCol(data, 1, out);
-  console.log(out);
+BEdgeData.prototype.bufferData = function(data) {
+  BFieldSet.prototype.bufferData.call(this, gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+};
 
-  BEdgeData.getLoc1(data, 1, out);
-  console.log(out);
+BEdgeData.prototype.bufferDraw = function(drawingMode) {
+  BFieldSet.prototype.bufferDraw.call(this, gl.ARRAY_BUFFER, drawingMode)
+};
 
-  BEdgeData.getLoc2(data, 1, out);
-  console.log(out);
-
-  BEdgeData.setCol(data, 1, [9,9,9]);
-  console.log(data);
-
-})();

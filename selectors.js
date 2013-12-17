@@ -1,8 +1,8 @@
 function is (x)    { return function (y) { return x == y; }; }
 function isNot (x) { return function (y) { return x != y; }; }
 
-var SELECTED_COLOR = [1,1,1];
-var UNSELECTED_COLOR = [0,0,0];
+var SELECTED_COLOR = [1,0,0];
+var UNSELECTED_COLOR = [.5,.5,.5];
 
 /////////// SELCTOR /////////////
 
