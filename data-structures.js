@@ -188,7 +188,8 @@ Set.prototype.put = function(e) {
   if( place == NIL )
     this.contents = this.contents.append(e);
   else {
-    place.tail = new List(place.val, place.tail);
+    if( this.comp(e, place.val) != 0 )
+      place.tail = new List(place.val, place.tail);
     place.val = e;
   }
 };
