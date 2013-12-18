@@ -70,6 +70,81 @@
 
     /////////////////////////////////////////////////////
 
+    var editMode = false;
+    var editModeChanged = false;
+
+    var EDIT_START_X, EDIT_START_Y;
+
+    var editVertSet = new Set(function (a, b) { return a.buf_id - b.buf_id; });
+    var editEdgeSet = new Set(function (a, b) { return a.buf_id - b.buf_id; });
+
+    var editOffset = vec4.create();
+
+    function toggleEditMode () {
+        editMode = !editMode;
+        console.log('edit mode:', editMode);
+        EDIT_START_X = MOUSE_X;
+        EDIT_START_Y = MOUSE_Y;
+
+        editModeChanged = true;
+    }
+
+    function handleEditMode () {
+        if( editModeChanged ) {
+            if( editMode )  enterEditMode();
+            else            exitEditMode();
+            editModeChanged = false;
+        }
+
+        if( ! editMode ) return;
+
+        //--------------------------------
+
+        vec4.set(editOffset, MOUSE_X - EDIT_START_X, MOUSE_Y - EDIT_START_Y, 0, 0);
+
+        editOffset = vec3.scale(editOffset, editOffset, 1);
+
+        var pInv = mat4.invert(mat4.create(), pMatrix);
+        var mvInv = mat4.invert(mat4.create(), mvMatrix);
+
+        vec4.transformMat4(editOffset, editOffset, pInv);
+        vec4.transformMat4(editOffset, editOffset, mvInv);
+
+        editVertSet.foreach(function (v) {
+            vec3.add(v.loc, v.editStartLoc, editOffset);
+            updateVertLoc(v);
+        });
+
+        editEdgeSet.foreach(updateEdgeLoc);
+    }
+
+    function enterEditMode () {
+
+        editVertSet.clear();
+        editEdgeSet.clear();
+
+        selector.selected().foreach(function (v) {
+            editVertSet.put(v);
+            v.eachEdge(function (e) {
+                editEdgeSet.put(e);
+            });
+
+            v.editStartLoc = vec3.copy(vec3.create(), v.loc);
+        });
+
+        console.log("vert set:");
+        editVertSet.foreach(function (v) { console.log(v); });
+
+        console.log("edge set:");
+        editEdgeSet.foreach(function (e) { console.log(e); });
+    }
+
+    function exitEditMode () {
+        
+    }
+
+    /////////////////////////////////////////////////////
+
     var _X_ = 0;  var _Y_ = 1;  var _Z_ = 2;
 
     var gl;
@@ -209,15 +284,15 @@
             else                            // 'v'
                 SELECTORS.set('v');
         }
+
+        else if( keyCode == 17 )            // ctrl
+            toggleEditMode();
     }
 
     var MOUSE_CLICKED = false;
     var MOUSE_X, MOUSE_Y;
 
-
     function handleMouseClick (mouseX, mouseY) {
-        MOUSE_X = mouseX / gl.viewportWidth * 2 - 1;
-        MOUSE_Y = 1 - mouseY / gl.viewportHeight * 2;
         MOUSE_CLICKED = true;
     }
 
@@ -238,8 +313,8 @@
     }
     function updateEdgeLoc (e) {
         ensureBoundBuffer(ebuf);
-        ebuf.glSetLoc1(e.buf_id, e.loc);
-        ebuf.glSetLoc2(e.buf_id, e.opp.loc);
+        ebuf.glSetLoc1(e.buf_id, e.vert.loc);
+        ebuf.glSetLoc2(e.buf_id, e.opp.vert.loc);
     }
 
     var mesh;
@@ -480,6 +555,8 @@
         handleKeys();
         drawScene();
         animate();
+
+        handleEditMode();
     }
 
 
@@ -495,14 +572,17 @@
         document.onkeydown = handleKeyDown;
         document.onkeyup = handleKeyUp;
 
+        canvas.onmousemove = function (event) {
+            var x = event.clientX - event.target.getBoundingClientRect().left;
+            var y = event.clientY - event.target.getBoundingClientRect().top;
+
+            MOUSE_X = x / gl.viewportWidth * 2 - 1;
+            MOUSE_Y = 1 - y / gl.viewportHeight * 2;
+        }
+
         canvas.onmousedown = function(event) {
-            var x = event.clientX;   var y = event.clientY;
-            var rect = event.target.getBoundingClientRect();
-            if ( rect.left <= x && x <= rect.right && rect.top  <= y && y <= rect.bottom ) {
-                var mouseX = x - rect.left;
-                var mouseY = y - rect.top;
-                handleMouseClick(mouseX, mouseY);
-            }
+            if( -1 <= MOUSE_X && MOUSE_X <= 1 && -1 <= MOUSE_Y && MOUSE_Y <= 1 )
+                handleMouseClick();
         }
 
         tick();

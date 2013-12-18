@@ -112,11 +112,8 @@ BVertData.prototype.glSetCol = function(index, col) {
   this.glSet(gl.ARRAY_BUFFER, index, this['COL'].offset, col);
 };
 
-BVertData.prototype.glSetLoc = function(bufType, index, loc) {
-  gl.bufferSubData(
-    bufType,
-    (index * this.itemSize + this['LOC'].offset) * Float32Array.BYTES_PER_ELEMENT,
-    new Float32Array(loc));
+BVertData.prototype.glSetLoc = function(index, loc) {
+  this.glSet(gl.ARRAY_BUFFER, index, this['LOC'].offset, loc);
 };
 
 BVertData.prototype.bufferBind = function() {
