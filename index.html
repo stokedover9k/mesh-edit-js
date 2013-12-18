@@ -390,11 +390,13 @@
             }
         }
         else if( selector == SELECTORS.faceSelector ) {
-            if( selector.sel.face ) {
-                console.log("splitting at face", selector.sel.face);
-                mesh.splitFaceAndNeighbors(selector.sel.face);
+            if( selector.sel.getFace() ) {
+                console.log("splitting at face", selector.sel.getFace());
+                mesh.splitFaceAndNeighbors(selector.sel.getFace());
                 selector.unselectAll();
             }
+            else
+                return;
         }
         else console.log("[WARNING] can't split in this selection mode.");
 

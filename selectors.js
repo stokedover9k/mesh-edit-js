@@ -159,8 +159,15 @@ SelEdge.prototype._unselect_all_ = function () {
 
 //---------------------------------------------------
 
+// When the selector has a selected face,
+// this.sel.edge is set to an edge belonging to this face.
+// A face pointer isn't used so that a null (outside) face may be selected.
 SelFace = function () { };
 SelFace.prototype = new _BaseSelector_;
+
+SelFace.prototype.getFace = function() {
+    return this.edge ? this.edge.face : null;
+};
 
 SelFace.prototype._select_off_ = function (v) {
     console.log("[WARNING] cannot unselect vertices during face selection; restart selector.");
@@ -171,7 +178,7 @@ SelFace.prototype._select_on_ = function (v) {
     var num = sel._selected_().size();
 
     if( num == 0 ) {
-        // do nothing
+        this.constructor.prototype._select_on_.call(this, v);
     }
     else if( num == 1 ) {
         var v0 = sel._selected_().val;
@@ -183,6 +190,8 @@ SelFace.prototype._select_on_ = function (v) {
         if( e ) {
             sel.face1 = e.face;
             sel.face2 = e.opp.face;
+            this.constructor.prototype._select_on_.call(this, v);
+
             console.log(sel.face1, sel.face2);
         }
         else return;
@@ -205,11 +214,12 @@ SelFace.prototype._select_on_ = function (v) {
                 } );
             }).exists(function (e) { return e.opp.face !== edge.opp.face; })) {
                 // complete face selection
-                sel.face = edge.face;
+                sel.edge = edge;
                 delete sel.face1;
                 delete sel.face2;
 
                 edge.eachEdge(function (e) {
+                    _make_selected_e_(e);
                     if( !_is_selected_(e.vert) ) {
                         sel.constructor.prototype._select_on_.call(sel, e.vert);
                     }
@@ -218,6 +228,14 @@ SelFace.prototype._select_on_ = function (v) {
             }
         } else return;
     }
+}
 
-    this.constructor.prototype._select_on_.call(this, v);
+SelFace.prototype._unselect_all_ = function () {
+    this.constructor.prototype._unselect_all_.call(this);
+    if( this.edge ) {
+        this.edge.eachEdge(function (e) {
+            _make_unselected_e_(e);
+        })
+        delete this.edge;
+    }
 }
