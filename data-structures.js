@@ -201,6 +201,10 @@ Set.prototype.get = function(e) {
     return place.val;
 };
 
+Set.prototype.foreach = function(func) {
+  this.contents.foreach(func);
+};
+
 // Set tester
 (function () {
   function item(id, val) {
