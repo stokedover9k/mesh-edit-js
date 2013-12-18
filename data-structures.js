@@ -36,6 +36,12 @@ List.prototype.prepend = function(v) {
   return new List(v, this);
 };
 
+List.prototype.append = function(v) {
+  if( this == NIL )
+    return new List(v, NIL);
+  return new List(this.val, this.tail.append(v));
+};
+
 List.prototype.filter = function(pred) {
   if( this == NIL )
     return NIL;
@@ -148,3 +154,90 @@ Arr.copy = function (dest, src, offset_src, offset_dest, n) {
   return dest;
 }
 
+//============================================//
+//                   Set                      //
+//============================================//
+
+Set = function (comp) {
+  this.contents = NIL;
+  this.comp = comp;
+  this.LT = function(b) {
+    return function (a) {
+      return comp(a, b) < 0;
+    }
+  }
+  this.LE = function(b) {
+    return function (a) {
+      return comp(a, b) <= 0;
+    }
+  }
+  this.EQ = function(b) {
+    return function (a) {
+      return comp(a, b) == 0;
+    }
+  }
+  this.GE = function(b) {
+    return function (a) {
+      return comp(a, b) >= 0;
+    }
+  }
+}
+
+Set.prototype.put = function(e) {
+  var place = this.contents.findWhere(this.GE(e));
+  if( place == NIL )
+    this.contents = this.contents.append(e);
+  else {
+    place.tail = new List(place.val, place.tail);
+    place.val = e;
+  }
+};
+
+Set.prototype.get = function(e) {
+  var place = this.contents.findWhere(this.GE(e));
+  if( place == NIL || this.comp(e, place.val) != 0 )
+    return null;
+  else
+    return place.val;
+};
+
+// Set tester
+(function () {
+  function item(id, val) {
+    this.id = id;
+    this.val = (val || "val:" + id);
+  }
+  function comparator(a, b) { return a.id - b.id; }
+  function show (set) { set.contents.foreach(function (v) { console.log(v); }); }
+
+  var set = new Set(comparator);
+
+  show(set);
+
+  set.put(new item(5));
+  set.put(new item(7));
+  set.put(new item(9));
+  set.put(new item(3));
+  set.put(new item(6));
+
+  show(set);
+
+  console.log('--------');
+
+  console.log('--- should find:');
+
+  console.log(set.get(new item(3, 'xxx')));
+  console.log(set.get(new item(7, 'xxx')));
+  console.log(set.get(new item(9, 'xxx')));
+
+  console.log('--- should not find:');
+
+  console.log(set.get(new item(0, 'xxx')));
+  console.log(set.get(new item(4, 'xxx')));
+  console.log(set.get(new item(111, 'xxx')));
+
+  console.log('--------');
+
+  show(set);
+
+})();
