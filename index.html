@@ -104,11 +104,8 @@
 
         editOffset = vec3.scale(editOffset, editOffset, 1);
 
-        var pInv = mat4.invert(mat4.create(), pMatrix);
-        var mvInv = mat4.invert(mat4.create(), mvMatrix);
-
-        vec4.transformMat4(editOffset, editOffset, pInv);
-        vec4.transformMat4(editOffset, editOffset, mvInv);
+        vec4.transformMat4(editOffset, editOffset, pMatrixInv);
+        vec4.transformMat4(editOffset, editOffset, mvMatrixInv);
 
         editVertSet.foreach(function (v) {
             vec3.add(v.loc, v.editStartLoc, editOffset);
@@ -213,7 +210,6 @@
         shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
         gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
 
-
         shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
         shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
         shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, "uSampler");
@@ -221,8 +217,32 @@
     }
 
     var mvMatrix = mat4.create();
+    var mvMatrixInv = mat4.create();
+    var mvMatrixValid = false;
     var mvMatrixStack = [];
+
     var pMatrix = mat4.create();
+    var pMatrixInv = mat4.create();
+    var pMatrixValid = false;
+
+    function computeMvMatrix () {
+        mat4.identity(mvMatrix);
+        mat4.translate(mvMatrix, mvMatrix, [0.0, 0.0, zoom]);
+        mat4.rotate(mvMatrix, mvMatrix, degToRad(spin), [0.0, 1.0, 0.0]);
+        mat4.rotate(mvMatrix, mvMatrix, degToRad(tilt), [1.0, 0.0, 0.0]);
+
+        mat4.invert(mvMatrixInv, mvMatrix);
+
+        mvMatrixValid = true;
+    }
+
+    function computePMatrix () {
+        mat4.perspective(pMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
+
+        mat4.invert(pMatrixInv, pMatrix);
+
+        pMatrixValid = true;
+    }
 
     function mvPushMatrix() {
         var copy = mat4.clone();
@@ -253,22 +273,28 @@
     var spin = 0;
 
     function handleKeys() {
-        if (currentlyPressedKeys[33])            // Page Up
-            zoom -= 0.1;
-        if (currentlyPressedKeys[34])            // Page Down
-            zoom += 0.1;
-        if (currentlyPressedKeys[38])            // Up cursor key
-            tilt += 2;
-        if (currentlyPressedKeys[40])            // Down cursor key
-            tilt -= 2;
-        if (currentlyPressedKeys[39])            // Right cursor key
-            spin += 2;
-        if (currentlyPressedKeys[37])            // Right cursor key
-            spin -= 2;
+        if (currentlyPressedKeys[33]) {           // Page Up
+            zoom -= 0.1;  mvMatrixValid = false;
+        }
+        if (currentlyPressedKeys[34]) {           // Page Down
+            zoom += 0.1;  mvMatrixValid = false;
+        }
+        if (currentlyPressedKeys[38]) {           // Up cursor key
+            tilt += 2;  mvMatrixValid = false;
+        }
+        if (currentlyPressedKeys[40]) {           // Down cursor key
+            tilt -= 2;  mvMatrixValid = false;
+        }
+        if (currentlyPressedKeys[39]) {           // Right cursor key
+            spin += 2;  mvMatrixValid = false;
+        }
+        if (currentlyPressedKeys[37]) {           // Right cursor key
+            spin -= 2;  mvMatrixValid = false;
+        }
     }
 
     function handleKeyPress (keyCode) {
-        if( keyCode == 45 )                      // Insert key
+        if( keyCode == 45 )                 // Insert key
             handleSplit();
 
         if( keyCode == 82 )                 // 'r'
@@ -508,15 +534,11 @@
         gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        mat4.perspective(pMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
-
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
         gl.enable(gl.BLEND);
 
-        mat4.identity(mvMatrix);
-        mat4.translate(mvMatrix, mvMatrix, [0.0, 0.0, zoom]);
-        mat4.rotate(mvMatrix, mvMatrix, degToRad(spin), [0.0, 1.0, 0.0]);
-        mat4.rotate(mvMatrix, mvMatrix, degToRad(tilt), [1.0, 0.0, 0.0]);
+        if( ! mvMatrixValid )   computeMvMatrix();
+        if( !  pMatrixValid )   computePMatrix();
 
         updateVerts();
 
