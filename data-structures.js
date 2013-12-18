@@ -202,6 +202,14 @@ Set.prototype.get = function(e) {
     return place.val;
 };
 
+Set.prototype.clear = function() {
+  this.contents = NIL;
+};
+
+Set.prototype.size = function() {
+  return this.contents.size();
+};
+
 Set.prototype.foreach = function(func) {
   this.contents.foreach(func);
 };
