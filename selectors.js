@@ -6,8 +6,8 @@ var UNSELECTED_COLOR = [.5,.5,.5];
 
 /////////// SELCTOR /////////////
 
-function _mark_selected_   (v) { v.SEL = true; }
-function _mark_unselected_ (v) { delete v.SEL; }
+function _mark_selected_   (v) { v.SEL = true; v.SEL_LVL = 1; }
+function _mark_unselected_ (v) { delete v.SEL; delete v.SEL_LVL; }
 function _is_selected_     (v) { return v.SEL ? true : false; }
 
 function _color_selected_v_   (v) { v.col =   SELECTED_COLOR; updateVertCol(v); }
@@ -61,6 +61,14 @@ SelectorInterface.prototype.unselectAll = function() {
         console.log("[WARNING] selector does not have unselectAll");
         this.selected().foreach(function (v) { sel._select_off_(v); });
     }
+};
+
+SelectorInterface.prototype.forget = function() {
+    this.sel._forget_all_();
+};
+
+SelectorInterface.prototype.setAll = function(vs) {
+    this.sel._set_all_(vs);
 };
 
 //---------------------------------------------------

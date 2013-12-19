@@ -64,10 +64,21 @@
         set : function (sel) {
             selector.unselectAll();
             selector = SELECTORS.get(sel);
+        },
+
+        transfer : function (sel) {
+            var vs = getSelector().selected();
+            SELECTORS.set(sel);
+            vs.foreach(function (v) {
+                getSelector().toggleSelect(v);
+            });
         }
     };
 
     var selector = SELECTORS.get('v');
+    function getSelector () {
+        return selector;
+    }
 
     function handleSelection() {
         console.log('handling selection');
@@ -85,6 +96,27 @@
             }
         });
         MOUSE_CLICKED = false;
+    }
+
+    function handleConcentricSelection () {
+        console.log('handling concentric selection');
+
+        if( selector != SELECTORS.verticesSelector ) {
+            SELECTORS.transfer('vs');
+        }
+
+        console.log(selector);
+
+        selector.selected().foreach(function (v0) {
+            v0.eachVert(function (v) {
+                if( _is_selected_(v) )
+                    v.SEL_LVL = Math.min(v.SEL_LVL, v0.SEL_LVL + 1);
+                else {
+                    selector.toggleSelect(v);
+                    v.SEL_LVL = v0.SEL_LVL + 1;
+                }
+            });
+        });
     }
 
     /////////////////////////////////////////////////////
@@ -110,7 +142,7 @@
         vec4.transformMat4(editOffset, editOffset, mvMatrixInv);
 
         editVertSet.foreach(function (v) {
-            vec3.add(v.loc, v.editStartLoc, editOffset);
+            vec3.scaleAndAdd(v.loc, v.editStartLoc, editOffset, 1/v.SEL_LVL);
             updateVertLoc(v);
         });
 

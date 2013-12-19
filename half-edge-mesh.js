@@ -23,6 +23,14 @@ Vert.prototype.eachEdge = function(func) {
   } while( e != this.edge );
 };
 
+Vert.prototype.eachVert = function(func) {
+  var e = this.edge;
+  do {
+    func(e.vert);
+    e = e.opp.next;
+  } while( e != this.edge );
+};
+
 Face.prototype.allEdges = function() {
   var es = [this.edge];
   for( var e = this.edge.next; e != this.edge; e = e.next )

@@ -89,6 +89,8 @@ var controls = (function() {
       SELECTORS.set('v');
     else if( key == 65 )            // 'a'
       SELECTORS.set('vs');
+    else if( key == 79 )
+      handleConcentricSelection();  // 'o'
   };
 
   ModeSelect.handleKeyUp = function (key) {
