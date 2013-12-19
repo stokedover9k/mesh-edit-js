@@ -17,6 +17,7 @@
 <script type="text/javascript" src="selectors.js"></script>
 <script type="text/javascript" src="webgl-utils.js"></script>
 <script type="text/javascript" src="gl-buffers.js"></script>
+<script type="text/javascript" src="modes.js"></script>
 
 <script id="shader-fs" type="x-shader/x-fragment">
     precision mediump float;
@@ -68,10 +69,27 @@
 
     var selector = SELECTORS.get('v');
 
+    function handleSelection() {
+        console.log('handling selection');
+
+        verts.foreach(function (vert) {
+            var worldCoord = vec4.fromValues(vert.loc[0], vert.loc[1], vert.loc[2], 1);
+            var eyeCoord = vec4.transformMat4(vec4.create(), worldCoord, mvMatrix);
+            var clipCoord = vec4.transformMat4(vec4.create(), eyeCoord, pMatrix);
+            var ndcCoord = vec4.scale(vec4.create(), clipCoord, 1/clipCoord[3]);
+
+            var EPSI = 0.02;
+            if( Math.abs(ndcCoord[0] - MOUSE_X) < EPSI && Math.abs(ndcCoord[1] - MOUSE_Y) < EPSI ) {
+                selector.toggleSelect(vert);
+                console.log(selector);
+            }
+        });
+        MOUSE_CLICKED = false;
+    }
+
     /////////////////////////////////////////////////////
 
     var editMode = false;
-    var editModeChanged = false;
 
     var EDIT_START_X, EDIT_START_Y;
 
@@ -80,25 +98,9 @@
 
     var editOffset = vec4.create();
 
-    function toggleEditMode () {
-        editMode = !editMode;
-        console.log('edit mode:', editMode);
-        EDIT_START_X = MOUSE_X;
-        EDIT_START_Y = MOUSE_Y;
-
-        editModeChanged = true;
-    }
-
     function handleEditMode () {
-        if( editModeChanged ) {
-            if( editMode )  enterEditMode();
-            else            exitEditMode();
-            editModeChanged = false;
-        }
 
         if( ! editMode ) return;
-
-        //--------------------------------
 
         vec4.set(editOffset, MOUSE_X - EDIT_START_X, MOUSE_Y - EDIT_START_Y, 0, 0);
 
@@ -115,10 +117,12 @@
         editEdgeSet.foreach(updateEdgeLoc);
     }
 
-    function enterEditMode () {
+    function enterMovingMode () {
 
-        editVertSet.clear();
-        editEdgeSet.clear();
+        editMode = true;
+
+        EDIT_START_X = MOUSE_X;
+        EDIT_START_Y = MOUSE_Y;
 
         selector.selected().foreach(function (v) {
             editVertSet.put(v);
@@ -136,8 +140,11 @@
         editEdgeSet.foreach(function (e) { console.log(e); });
     }
 
-    function exitEditMode () {
-        
+    function exitMovingMode () {
+        editVertSet.clear();
+        editEdgeSet.clear();
+
+        editMode = false;
     }
 
     /////////////////////////////////////////////////////
@@ -262,11 +269,20 @@
     function degToRad(degrees) { return Math.PI * degrees / 180; }
 
     var currentlyPressedKeys = {};
+    
     function handleKeyDown(event) {
-        currentlyPressedKeys[event.keyCode] = true;
-        handleKeyPress(event.keyCode);
+        if( ! currentlyPressedKeys[event.keyCode] ) {
+            currentlyPressedKeys[event.keyCode] = true;
+            controls.handleKeyDown(event.keyCode);
+        }
     }
-    function handleKeyUp(event) {  currentlyPressedKeys[event.keyCode] = false;  }
+    
+    function handleKeyUp(event) {
+        if( currentlyPressedKeys[event.keyCode] ) {
+            currentlyPressedKeys[event.keyCode] = false;
+            controls.handleKeyUp(event.keyCode);
+        }
+    }
 
     var zoom = -5;
     var tilt = 0;
@@ -291,36 +307,15 @@
         if (currentlyPressedKeys[37]) {           // Right cursor key
             spin -= 2;  mvMatrixValid = false;
         }
-    }
 
-    function handleKeyPress (keyCode) {
-        if( keyCode == 45 )                 // Insert key
-            handleSplit();
-
-        if( keyCode == 82 )                 // 'r'
-            handleRotate();
-
-        else if( keyCode == 69 )            // 'e'
-            SELECTORS.set('e');
-        else if( keyCode == 70 )            // 'f'
-            SELECTORS.set('f');
-        else if( keyCode == 86 ) {          // 
-            if( currentlyPressedKeys[16] )  // shift + 'v'
-                SELECTORS.set('vs');
-            else                            // 'v'
-                SELECTORS.set('v');
-        }
-
-        else if( keyCode == 17 )            // ctrl
-            toggleEditMode();
+        if( ! mvMatrixValid )   computeMvMatrix();
+        if( !  pMatrixValid )   computePMatrix();
     }
 
     var MOUSE_CLICKED = false;
     var MOUSE_X, MOUSE_Y;
 
-    function handleMouseClick (mouseX, mouseY) {
-        MOUSE_CLICKED = true;
-    }
+    //============= buffers ==============
 
     var vbuf;
     var ebuf;
@@ -347,12 +342,6 @@
     var verts = NIL;
     var edges = NIL;
     
-    var vertsToUpdate = NIL;
-    var vertsToAdd = NIL;
-
-    var edgesToUpdate = NIL;
-    var edgesToAdd = NIL;
-
     function initObjects () {
 
         var vertData;
@@ -464,21 +453,7 @@
         ebuf.bufferData(points);
     }
 
-    function drawAll () {
-        gl.uniform3f(shaderProgram.colorUniform, .5, .5, .1);
-
-        setMatrixUniforms();
-
-        vbuf.bufferDraw(gl.POINTS);
-        ebuf.bufferDraw(gl.LINES);
-    }
-
-    function updateVerts () {
-        vertsToUpdate.foreach(function (v) {
-            vbuf.glSetCol(v.buf_id, v.col);
-        });
-        vertsToUpdate = NIL;
-    }
+    //============ edit operations ===============
 
     function handleSplit () {
         if( selector.selected() == NIL )  return;
@@ -530,6 +505,8 @@
         initBuffers();
     }
 
+    //---------------------------------------------
+
     function drawScene() {
         gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -537,29 +514,12 @@
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
         gl.enable(gl.BLEND);
 
-        if( ! mvMatrixValid )   computeMvMatrix();
-        if( !  pMatrixValid )   computePMatrix();
+        gl.uniform3f(shaderProgram.colorUniform, .5, .5, .1);
 
-        updateVerts();
+        setMatrixUniforms();
 
-        if( MOUSE_CLICKED ) {
-            verts.foreach(function (vert) {
-
-                var worldCoord = vec4.fromValues(vert.loc[0], vert.loc[1], vert.loc[2], 1);
-                var eyeCoord = vec4.transformMat4(vec4.create(), worldCoord, mvMatrix);
-                var clipCoord = vec4.transformMat4(vec4.create(), eyeCoord, pMatrix);
-                var ndcCoord = vec4.scale(vec4.create(), clipCoord, 1/clipCoord[3]);
-
-                var EPSI = 0.02;
-                if( Math.abs(ndcCoord[0] - MOUSE_X) < EPSI && Math.abs(ndcCoord[1] - MOUSE_Y) < EPSI ) {
-                    selector.toggleSelect(vert);
-                    console.log(selector);
-                }
-            });
-        }
-
-        drawAll();
-        MOUSE_CLICKED = false;
+        vbuf.bufferDraw(gl.POINTS);
+        ebuf.bufferDraw(gl.LINES);
     }
 
     var lastTime = 0;
@@ -603,8 +563,15 @@
         }
 
         canvas.onmousedown = function(event) {
-            if( -1 <= MOUSE_X && MOUSE_X <= 1 && -1 <= MOUSE_Y && MOUSE_Y <= 1 )
-                handleMouseClick();
+            if( -1 <= MOUSE_X && MOUSE_X <= 1 && -1 <= MOUSE_Y && MOUSE_Y <= 1 ) {
+                MOUSE_CLICKED = true;
+                controls.handleMouseDown(MOUSE_X, MOUSE_Y);
+            }
+        }
+
+        document.onmouseup = function (event) {
+            if( MOUSE_CLICKED )
+                controls.handleMouseUp(MOUSE_X, MOUSE_Y);
         }
 
         tick();
