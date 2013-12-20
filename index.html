@@ -187,7 +187,10 @@
 
         if( ! editMode ) return;
 
-        vec4.set(editOffset, MOUSE_X - EDIT_START_X, MOUSE_Y - EDIT_START_Y, 0, 0);
+        if( currentlyPressedKeys[17] )
+            vec4.set(editOffset, MOUSE_X - EDIT_START_X, 0, MOUSE_Y - EDIT_START_Y, 0);
+        else
+            vec4.set(editOffset, MOUSE_X - EDIT_START_X, MOUSE_Y - EDIT_START_Y, 0, 0);
 
         editOffset = vec3.scale(editOffset, editOffset, 1);
 
