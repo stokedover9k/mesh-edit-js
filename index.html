@@ -4,6 +4,17 @@
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
 
 <style>
+    body {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+
+      overflow: none;
+    }
+
     .info-dash-variable {
         color: rgb(228, 67, 45);
         font-style: italic;
@@ -16,6 +27,12 @@
     #info-div {
         max-width: 100%;
         padding-left: 530px;
+
+        position: absolute;
+        overflow: scroll;
+        height: 100%;
+
+        z-index: -5;
     }
 
     .key-name {
