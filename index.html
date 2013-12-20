@@ -3,6 +3,34 @@
 <head>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
 
+<style>
+    .info-dash-variable {
+        color: rgb(228, 67, 45);
+        font-style: italic;
+    }
+
+    #main-content {
+        float: left;
+    }
+
+    #info-div {
+        max-width: 100%;
+        padding-left: 530px;
+    }
+
+    .key-name {
+        font-style: italic;
+        color: rgb(87, 154, 180);
+    }
+    .key-name:before { content: "\0027"; }
+    .key-name:after  { content: "\0027"; }
+
+    dt { font-weight: bold; }
+    h3 { color: color: rgb(26, 72, 129); }
+
+    a { color: rgb(26, 72, 129); }
+</style>
+
 <!--
 <script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
 -->
@@ -24,7 +52,6 @@
     uniform vec3 uColor;
     varying vec3 modColor;
     void main(void) {
-//        gl_FragColor = vec4(uColor + modColor, 1.0);
         gl_FragColor = vec4(modColor, 1.0);
     }
 </script>
@@ -47,6 +74,31 @@
 
 <script type="text/javascript">
 
+    var INFO_DASH = {
+        SELECTION_MODE : document.createElement('p'),
+
+        setSelectionMode : function (selector) {
+            console.log("changing mode", selector);
+            this.SELECTION_MODE.innerHTML = '';
+
+            var name;
+            if( selector == SELECTORS.vertexSelector )        name = 'vertex (1)';
+            else if( selector == SELECTORS.verticesSelector ) name = 'vertices (mult)';
+            else if( selector == SELECTORS.edgeSelector )     name = 'edge';
+            else if( selector == SELECTORS.faceSelector )     name = 'face';
+            this.SELECTION_MODE.appendChild(document.createTextNode(name));
+        },
+
+        EDITTING_MODE : document.createElement('p'),
+
+        setEdittingMode : function (mode) {
+            this.EDITTING_MODE.innerHTML = '';
+            this.EDITTING_MODE.appendChild(document.createTextNode(mode));
+        }
+    };
+
+    /////////////////////////////////////////////////////////////////
+
     var SELECTORS = {
         vertexSelector   : new SelectorInterface( new SelVertex() ),
         verticesSelector : new SelectorInterface( new SelVertices() ),
@@ -64,6 +116,7 @@
         set : function (sel) {
             selector.unselectAll();
             selector = SELECTORS.get(sel);
+            INFO_DASH.setSelectionMode(selector);
         },
 
         transfer : function (sel) {
@@ -573,7 +626,6 @@
         handleEditMode();
     }
 
-
     function webGLStart() {
         var canvas = document.getElementById("lesson09-canvas");
         initGL(canvas);
@@ -606,6 +658,13 @@
                 controls.handleMouseUp(MOUSE_X, MOUSE_Y);
         }
 
+        INFO_DASH.SELECTION_MODE = document.getElementById('info-dash-selection-mode');
+        INFO_DASH.EDITTING_MODE  = document.getElementById('info-dash-edit-mode');
+
+        SELECTORS.set('v');
+
+        controls.mode.enter();
+
         tick();
     }
 
@@ -613,10 +672,62 @@
 </head>
 
 <body onload="webGLStart();">
-    <canvas id="lesson09-canvas" style="border: none;" width="500" height="500"></canvas>
+    <div id="main-content">
+        <canvas id="lesson09-canvas" style="border: none;" width="500" height="500"></canvas>
 
-    <p>Use up/down cursor keys to rotate, and <code>Page Up</code>/<code>Page Down</code> to zoom out/in</p>
-    <p>Use space to select next vertex, Ins to split its edge.</p>
+        <div id="infodash">
+            <p>Edit Mode: <span class="info-dash-variable" id="info-dash-edit-mode">select mode</span></p>
+            <p>Selection Mode: <span class="info-dash-variable" id="info-dash-selection-mode">select mode</span></p>
+        </div>
+    </div>
+    <div id="info-div">
+        <h3><a name="editting-modes">Editting Modes</a></h3>
+        <dl>
+            <dt><a name="free-editting-mode">Free</a></dt>
+            <dd>Change the <a href="#mesh-view">view</a> of the mesh, choose selecting modes, enter other editting modes, or perform <a href="#operations">edit operations</a>.</dd>
+            
+            <dt><a href="#selecting-editting-mode">Selecting</a> (<span class='key-name'>Shift</span>)</dt>
+            <dd>While holding Shift click on vertices to select them</dd>
+
+            <dt><a href="#moving-editting-mode">Moving</a> (<span class='key-name'>Left Mouse Button</span>)</dt>
+            <dd>Move selected vertices to where you wish. Move vertices on the plane parallel to the screen, or hold <span class='key-name'>Ctrl</span> to move on the plane perpendicular to the Y-axis.</dd>
+        </dl>
+
+        <h3><a name="selecting-editting-mode">Selection Mode</a></h3>
+        <p>Selection modes determine what vertices may be selected. Some modes don't allow vertices to be unselected. Re-choose any mode to clear selection.</p>
+        <dl>
+            <dt><a name="vertex-selection-mode">Vertex</a> (<span class='key-name'>v</span>)</dt>
+            <dd>Select only one vertex at a time.</dd>
+
+            <dt><a name="vertices-selection-mode">Vertices</a> (<span class='key-name'>a</span>)</dt>
+            <dd>Select and unselect any set of vertices.</dd>
+
+            <dt><a name="edge-selection-mode">Edge</a> (<span class='key-name'>e</span>)</dt>
+            <dd>Select an edge. Once a vertex is selected, only vertices it is connected to become selectable.</dd>
+
+            <dt><a name="face-selection-mode">Face</a> (<span class='key-name'>f</span>)</dt>
+            <dd>Select a face. First two nodes which are selected must be connected with an edge. This edge determines two possible faces for selection. Once a vertex is selected which belongs to only one of them, the other vertices around that face are selected automatically.</dd>
+        </dl>
+
+        <h3><a name="moving-editting-mode">Moving Mode</a></h3>
+        <p>Moving mode is activated by pressing down the mouse button while not in selection mode. The vertices are dragged parallel to the screen unless <span class='key-name'>Ctrl</span> is pressed, in which case they move perpendicular to the Y-axis. The vertices move together (except with <a href="#concentric-selection-operation">concentric selection</a>).</p>
+
+        <h3><a name="operations">Operations</a></h3>
+        <dl>
+            <dt><a name="concentric-selection-operation">Concentric Selection</a> (<span class='key-name'>o</span>)</dt>
+            <dd>Select all vertices which are a) unselected and b) are connected to a selected vertex by an edge. The selection mode is automatically transferred to <a href="#vertices-selection-mode">vertices selection mode</a>. Each newly selected vertex is selected with a selection level of its previously selected neighbor + 1 (manually selected vertices are given level 1). When the set of vertices moves, each vertex moves the distance proportional to <code>mouse_offset / vertex_selection_level</code>.</dd>
+
+            <dt><a name="split-operation">Split</a> (<span class='key-name'>s</span>)</dt>
+            <dd>In <a href="#edge-selection-mode">edge selection mode</a> the selected edge is split at the midpoint and edges are added on both sides (unless on the boudary) of the new vertex (e.g. a triangle mesh remains a triangle mesh). In <a href="#face-selection-mode">face selection mode</a> a face must be a triangle. If so, it is split into four triangles and its three neighbors are each split into two (equivalent to calling split on each of its three edges and then <a href="#rotate-edge-operation">rotating</a> the first new edge inside the original triangle).</dd>
+
+            <dt><a name="rotate-edge-operation">Rotate Edge</a> (<span class='key-name'>r</span>)</dt>
+            <dd>In <a href="#edge-selection-mode">edge selection mode</a> the edge between vertices a and b is reconnected to vertices a&#39; and b&#39; such that a&#39; and b&#39; are the next counter-clockwise vertices from a and b on the combined face which would result from removing the rotating edge.</dd>
+        </dl>
+
+        <h3><a name="mesh-view">View</a></h3>
+        <p>Use arrow keys to rotate the mesh and PageDown/PageUp to zoom in/out.</p>
+
+    </div>
 </body>
 
 </html>

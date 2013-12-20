@@ -18,6 +18,7 @@ Mode.prototype.handleKeyUp = function(key) {
 
 Mode.prototype.enter = function() {
   console.log(this.name, "enter");
+  INFO_DASH.setEdittingMode(this.name);
 };
 
 Mode.prototype.exit = function() {
@@ -56,9 +57,9 @@ Controls.prototype.setMode = function(mode) {
 
 var controls = (function() {
 
-  var ModeNone = new Mode("NONE");
-  var ModeSelect = new Mode("SELECT");
-  var ModeMove = new Mode("MOVE");
+  var ModeNone = new Mode("Free");
+  var ModeSelect = new Mode("Select");
+  var ModeMove = new Mode("Move");
 
   var container = new Controls(ModeNone);
 
@@ -77,7 +78,7 @@ var controls = (function() {
       container.setMode(ModeSelect);
     }
 
-    else if( key == 45 )            // Insert key
+    else if( key == 83 )            // 's'
       handleSplit();
     else if( key == 82 )            // 'r'
       handleRotate();
